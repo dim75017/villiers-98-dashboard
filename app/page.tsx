@@ -61,10 +61,10 @@ const officePackageLots = new Set([12, 24, 29, 30, 31, 32, 33, 34, 44, 53]);
 const obsoleteOwnershipNote = /Rattachement au propriétaire non prouvé par les pièces disponibles: laisser vide jusqu'au retour SPF\.\s*/g;
 
 const categoryForNature = (nature: string | null) => {
-  if (nature === "Parking") return { categorie: "Parkings", categorieSlug: "parking" };
-  if (nature === "Cave") return { categorie: "Caves", categorieSlug: "cave" };
-  if (nature === "Appartement" || nature === "Studio" || nature === "Chambre") return { categorie: "Habitations", categorieSlug: "habitation" };
-  return { categorie: "Bureaux / commerces", categorieSlug: "bureau" };
+  if (nature === "Parking") return { categorie: "Parkings", categorieSlug: "parking", categorieEmoji: "🅿️" };
+  if (nature === "Cave") return { categorie: "Caves", categorieSlug: "cave", categorieEmoji: "📦" };
+  if (nature === "Appartement" || nature === "Studio" || nature === "Chambre") return { categorie: "Habitations", categorieSlug: "habitation", categorieEmoji: "🏠" };
+  return { categorie: "Bureaux / commerces", categorieSlug: "bureau", categorieEmoji: "💼" };
 };
 
 const masterLots = lots.map((lot) => {
@@ -127,6 +127,7 @@ const sortOptions: Array<{ value: SortKey; label: string }> = [
 ];
 
 const categoryNames = ["Parkings", "Caves", "Bureaux / commerces", "Habitations"];
+const categoryEmoji: Record<string, string> = { Parkings: "🅿️", Caves: "📦", "Bureaux / commerces": "💼", Habitations: "🏠" };
 
 export default function Home() {
   const [query, setQuery] = useState("");
@@ -231,52 +232,52 @@ export default function Home() {
   return (
     <main className="page-shell">
       <header className="simple-header">
-        <div className="identity"><span className="identity-mark">98</span><div><strong>98 avenue de Villiers</strong><small>ACQUISITION PROGRESSIVE · PARIS 17</small></div></div>
-        <div className="header-meta"><span>Mise à jour · 1 août 2026</span><b>Accès privé</b></div>
+        <div className="identity"><span className="identity-mark">98</span><div><strong>🏛️ 98 avenue de Villiers</strong><small>ACQUISITION PROGRESSIVE · PARIS 17</small></div></div>
+        <div className="header-meta"><span>🗓️ Mise à jour · 1 août 2026</span><b>🔒 Accès privé</b></div>
       </header>
 
       <section className="hero">
-        <span className="eyebrow copper">BASE MAÎTRE PAR PROPRIÉTAIRE</span>
-        <div className="hero-heading"><div><h1>Chaque propriétaire. Tous ses lots. Un seul bloc.</h1><p>Les 85 lots sont regroupés sous leurs 44 copropriétaires pour visualiser immédiatement chaque portefeuille.</p></div><span className="proof-badge">44 groupes propriétaires</span></div>
+        <span className="eyebrow copper">🗂️ BASE MAÎTRE PAR PROPRIÉTAIRE</span>
+        <div className="hero-heading"><div><h1>👤 Chaque propriétaire. Tous ses lots. Un seul bloc.</h1><p>Les 85 lots sont regroupés sous leurs 44 copropriétaires pour visualiser immédiatement chaque portefeuille.</p></div><span className="proof-badge">👥 44 groupes propriétaires</span></div>
         <div className="metrics">
-          <article><small>Lots associés</small><strong>85</strong><p>100 % de l’immeuble relié</p></article>
-          <article><small>Copropriétaires</small><strong>44</strong><p>Liste actuelle issue de l’AG 2026</p></article>
-          <article><small>Pièce directe</small><strong>18</strong><p>Acte, PUV ou transaction identifiée</p></article>
-          <article><small>Recoupés</small><strong>67</strong><p>Feuille détaillée 2024 + liste 2026</p></article>
-          <article><small>Tantièmes contrôlés</small><strong>10 000</strong><p>Rapprochés lot par lot et propriétaire par propriétaire</p></article>
+          <article><small>🧩 Lots associés</small><strong>85</strong><p>100 % de l’immeuble relié</p></article>
+          <article><small>👥 Copropriétaires</small><strong>44</strong><p>Liste actuelle issue de l’AG 2026</p></article>
+          <article><small>📜 Pièce directe</small><strong>18</strong><p>Acte, PUV ou transaction identifiée</p></article>
+          <article><small>🔗 Recoupés</small><strong>67</strong><p>Feuille détaillée 2024 + liste 2026</p></article>
+          <article><small>🧮 Tantièmes contrôlés</small><strong>10 000</strong><p>Rapprochés lot par lot et propriétaire par propriétaire</p></article>
         </div>
       </section>
 
       <section className="section lots-section">
-        <div className="section-title"><div><span className="eyebrow copper">TABLEAU REGROUPÉ</span><h2>Portefeuille de chaque copropriétaire</h2><p>Une ligne correspond à un propriétaire ; tous ses lots sont réunis dans la même cellule.</p></div><strong>{ownerGroups.length} propriétaires · {visibleLots.length} / 85 lots</strong></div>
+        <div className="section-title"><div><span className="eyebrow copper">📊 TABLEAU REGROUPÉ</span><h2>🗃️ Portefeuille de chaque copropriétaire</h2><p>Une ligne correspond à un propriétaire ; tous ses lots sont réunis dans la même cellule.</p></div><strong>👥 {ownerGroups.length} propriétaires · 🧩 {visibleLots.length} / 85 lots</strong></div>
 
         <div className="category-strip" aria-label="Catégories de lots">
           {[
-            { name: "Parkings", slug: "parking", detail: "Emplacements seuls ou accessoires" },
-            { name: "Caves", slug: "cave", detail: "Caves et annexes privatives" },
-            { name: "Bureaux / commerces", slug: "bureau", detail: "Locaux professionnels" },
-            { name: "Habitations", slug: "habitation", detail: "Studios, chambres et appartements" },
-          ].map((item) => <button key={item.name} type="button" className={`category-card ${item.slug} ${category === item.name ? "active" : ""}`} onClick={() => setCategory(category === item.name ? "Toutes" : item.name)} aria-pressed={category === item.name}><span>{item.name}</span><strong>{categoryCounts[item.name]}</strong><small>{item.detail}</small></button>)}
+            { name: "Parkings", slug: "parking", icon: "🅿️", detail: "Emplacements seuls ou accessoires" },
+            { name: "Caves", slug: "cave", icon: "📦", detail: "Caves et annexes privatives" },
+            { name: "Bureaux / commerces", slug: "bureau", icon: "💼", detail: "Locaux professionnels" },
+            { name: "Habitations", slug: "habitation", icon: "🏠", detail: "Studios, chambres et appartements" },
+          ].map((item) => <button key={item.name} type="button" className={`category-card ${item.slug} ${category === item.name ? "active" : ""}`} onClick={() => setCategory(category === item.name ? "Toutes" : item.name)} aria-pressed={category === item.name}><span>{item.icon} {item.name}</span><strong>{categoryCounts[item.name]}</strong><small>{item.detail}</small></button>)}
         </div>
 
         <div className="filters master-filters">
-          <label className="search"><span>Rechercher</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Lot, propriétaire, étage, source…" /></label>
-          <label><span>Catégorie</span><select value={category} onChange={(event) => setCategory(event.target.value)}><option>Toutes</option><option>Parkings</option><option>Caves</option><option>Bureaux / commerces</option><option>Habitations</option></select></label>
-          <label><span>Étage</span><select value={floor} onChange={(event) => setFloor(event.target.value)}>{floors.map((item) => <option key={item}>{item}</option>)}</select></label>
-          <label><span>Trier par</span><select value={sortKey} onChange={(event) => setSortKey(event.target.value as SortKey)}>{sortOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
-          <label><span>Ordre</span><select value={sortDirection} onChange={(event) => setSortDirection(event.target.value as SortDirection)}><option value="asc">Croissant ↑</option><option value="desc">Décroissant ↓</option></select></label>
-          <button type="button" onClick={resetFilters}>Réinitialiser les filtres</button>
+          <label className="search"><span>🔎 Rechercher</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Lot, propriétaire, étage, source…" /></label>
+          <label><span>🗂️ Catégorie</span><select value={category} onChange={(event) => setCategory(event.target.value)}><option>Toutes</option><option>Parkings</option><option>Caves</option><option>Bureaux / commerces</option><option>Habitations</option></select></label>
+          <label><span>🛗 Étage</span><select value={floor} onChange={(event) => setFloor(event.target.value)}>{floors.map((item) => <option key={item}>{item}</option>)}</select></label>
+          <label><span>↕️ Trier par</span><select value={sortKey} onChange={(event) => setSortKey(event.target.value as SortKey)}>{sortOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+          <label><span>🔃 Ordre</span><select value={sortDirection} onChange={(event) => setSortDirection(event.target.value as SortDirection)}><option value="asc">Croissant ↑</option><option value="desc">Décroissant ↓</option></select></label>
+          <button type="button" onClick={resetFilters}>🧹 Réinitialiser les filtres</button>
         </div>
 
         <div className="table-shell master-table-shell">
           <table className="grouped-table">
-            <thead><tr>{sortHeader("owner", "Propriétaire")}<th>Type</th>{sortHeader("lotCount", "Lots regroupés")}<th>Répartition</th><th>Étages</th><th>Surface documentée</th>{sortHeader("ownerWeight", "Poids du propriétaire")}<th>Coordonnées</th><th>Acquisition(s)</th>{sortHeader("value", "Valeur cumulée")}<th>Sources</th></tr></thead>
+            <thead><tr>{sortHeader("owner", "👤 Propriétaire")}<th>🏷️ Type</th>{sortHeader("lotCount", "🧩 Lots regroupés")}<th>🗂️ Répartition</th><th>🛗 Étages</th><th>📐 Surface documentée</th>{sortHeader("ownerWeight", "⚖️ Poids du propriétaire")}<th>📬 Coordonnées</th><th>📅 Acquisition(s)</th>{sortHeader("value", "💶 Valeur cumulée")}<th>🔗 Sources</th></tr></thead>
             <tbody>{ownerGroups.map((group) => <tr key={group.ownerName}>
-              <td className="owner-sticky"><strong>{group.ownerName}</strong><small>{group.lots.length === group.totalOwnerLots ? `${group.totalOwnerLots} lot${group.totalOwnerLots === 1 ? "" : "s"}` : `${group.lots.length} affiché${group.lots.length === 1 ? "" : "s"} sur ${group.totalOwnerLots}`}</small></td>
+              <td className="owner-sticky"><strong>👤 {group.ownerName}</strong><small>🧩 {group.lots.length === group.totalOwnerLots ? `${group.totalOwnerLots} lot${group.totalOwnerLots === 1 ? "" : "s"}` : `${group.lots.length} affiché${group.lots.length === 1 ? "" : "s"} sur ${group.totalOwnerLots}`}</small></td>
               <td>{text(group.type)}</td>
-              <td className="lots-group-cell"><div className="group-lots">{group.lots.map((lot) => <span key={lot.lot} className={`group-lot-chip ${lot.categorieSlug}`}><b>Lot {lot.lot}</b><small>{lot.categorie} · {lot.etage}</small></span>)}</div></td>
-              <td className="category-breakdown">{group.categories.map((item) => <span key={item.name}><b>{item.count}</b> {item.name.toLocaleLowerCase("fr")}</span>)}</td>
-              <td className="floors-list">{group.floors.map((item) => <span key={item}>{item}</span>)}</td>
+              <td className="lots-group-cell"><div className="group-lots">{group.lots.map((lot) => <span key={lot.lot} className={`group-lot-chip ${lot.categorieSlug}`}><b>{lot.categorieEmoji} Lot {lot.lot}</b><small>{lot.categorie} · {lot.etage}</small></span>)}</div></td>
+              <td className="category-breakdown">{group.categories.map((item) => <span key={item.name}>{categoryEmoji[item.name]} <b>{item.count}</b> {item.name.toLocaleLowerCase("fr")}</span>)}</td>
+              <td className="floors-list">{group.floors.map((item) => <span key={item}>🛗 {item}</span>)}</td>
               <td className="numeric">{group.surfaceCount ? <><strong>{number.format(group.knownSurface)} m²</strong><small>{group.surfaceCount} lot{group.surfaceCount === 1 ? "" : "s"} renseigné{group.surfaceCount === 1 ? "" : "s"}</small></> : "—"}</td>
               <td className="stacked owner-weight"><strong>{number.format(group.ownerWeight)} tantièmes · {pct(group.ownerShare)}</strong><span>{group.totalOwnerLots} lot{group.totalOwnerLots === 1 ? "" : "s"} détenu{group.totalOwnerLots === 1 ? "" : "s"}</span></td>
               <td className="stacked contact-cell"><span>{text(group.address)}</span>{group.phone && <a href={`tel:${group.phone}`}>{group.phone}</a>}{group.email && <a href={`mailto:${group.email}`}>{group.email}</a>}</td>
@@ -289,12 +290,12 @@ export default function Home() {
       </section>
 
       <section className="section">
-        <div className="section-title"><div><span className="eyebrow copper">ASSEMBLAGE</span><h2>Blocs stratégiques désormais attribués</h2><p>Même étage ou même package ne signifie pas automatiquement contiguïté physique.</p></div></div>
-        <div className="blocks-grid">{blocks.map((block) => <article key={block.name} className="block-card"><div><span className={`priority ${block.priority.toLowerCase()}`}>{block.priority}</span><span className="block-share">{number.format(block.tantiemes)} tantièmes</span></div><h3>{block.name}</h3><p>{block.levels}</p><dl><div><dt>Lots</dt><dd>{block.lots}</dd></div><div><dt>Propriétaire(s)</dt><dd>{block.owner}</dd></div></dl><footer>{block.note}</footer></article>)}</div>
+        <div className="section-title"><div><span className="eyebrow copper">🧱 ASSEMBLAGE</span><h2>🎯 Blocs stratégiques désormais attribués</h2><p>💡 Même étage ou même package ne signifie pas automatiquement contiguïté physique.</p></div></div>
+        <div className="blocks-grid">{blocks.map((block) => <article key={block.name} className="block-card"><div><span className={`priority ${block.priority.toLowerCase()}`}>🎯 {block.priority}</span><span className="block-share">⚖️ {number.format(block.tantiemes)} tantièmes</span></div><h3>🧩 {block.name}</h3><p>🛗 {block.levels}</p><dl><div><dt>🔢 Lots</dt><dd>{block.lots}</dd></div><div><dt>👤 Propriétaire(s)</dt><dd>{block.owner}</dd></div></dl><footer>💡 {block.note}</footer></article>)}</div>
       </section>
 
       <section className="section final-section">
-        <article className="spf-panel"><div><span className="eyebrow copper">CONSOLIDATION JURIDIQUE</span><h2>Transformer les recoupements en preuves récentes</h2><p>Les 85 associations sont désormais lisibles. Pour les 67 lignes sans pièce directe récente, le SPF reste le contrôle définitif avant prise de contact ou acquisition.</p></div><ol><li><b>1</b>Prioriser les P0/P1</li><li><b>2</b>Commander les fiches SPF</li><li><b>3</b>Joindre l’acte à chaque ligne</li></ol><a href="https://www.impots.gouv.fr/formulaire/3233-sd/demande-de-renseignements-pour-la-periode-compter-du-1er-janvier-1956" target="_blank" rel="noreferrer">Formulaire officiel DGFIP</a></article>
+        <article className="spf-panel"><div><span className="eyebrow copper">⚖️ CONSOLIDATION JURIDIQUE</span><h2>📜 Transformer les recoupements en preuves récentes</h2><p>Les 85 associations sont désormais lisibles. Pour les 67 lignes sans pièce directe récente, le SPF reste le contrôle définitif avant prise de contact ou acquisition.</p></div><ol><li><b>1</b>🎯 Prioriser les P0/P1</li><li><b>2</b>📨 Commander les fiches SPF</li><li><b>3</b>📎 Joindre l’acte à chaque ligne</li></ol><a href="https://www.impots.gouv.fr/formulaire/3233-sd/demande-de-renseignements-pour-la-periode-compter-du-1er-janvier-1956" target="_blank" rel="noreferrer">🧾 Formulaire officiel DGFIP</a></article>
         <p className="footnote"><strong>Rapprochement principal :</strong> feuille de présence détaillée de l’AG du 7 octobre 2024, recoupée avec la liste des 44 comptes copropriétaires et le PV 2026. Les mutations documentées par acte, PUV ou DVF sont signalées « Pièce directe ». Les autres restent signalées « Recoupé » jusqu’au contrôle SPF.</p>
       </section>
     </main>
