@@ -57,13 +57,28 @@ const ownerByLot = new Map<number, Owner>();
 owners.forEach((owner) => ownerLots[owner.proprietaire]?.forEach((lot) => ownerByLot.set(lot, owner)));
 
 const directLots = new Set(lots.filter((lot) => Boolean(lot.proprietaire)).map((lot) => lot.lot));
+const officePackageLots = new Set([12, 24, 29, 30, 31, 32, 33, 34, 44, 53]);
 const obsoleteOwnershipNote = /Rattachement au propriétaire non prouvé par les pièces disponibles: laisser vide jusqu'au retour SPF\.\s*/g;
+
+const categoryForNature = (nature: string | null) => {
+  if (nature === "Parking") return { categorie: "Parkings", categorieSlug: "parking" };
+  if (nature === "Cave") return { categorie: "Caves", categorieSlug: "cave" };
+  if (nature === "Appartement" || nature === "Studio" || nature === "Chambre") return { categorie: "Habitations", categorieSlug: "habitation" };
+  return { categorie: "Bureaux / commerces", categorieSlug: "bureau" };
+};
 
 const masterLots = lots.map((lot) => {
   const owner = ownerByLot.get(lot.lot);
   const direct = directLots.has(lot.lot);
+  const category = categoryForNature(lot.nature);
+  const isOfficePackage = officePackageLots.has(lot.lot);
+  const cleanedComment = lot.commentaires?.replace(obsoleteOwnershipNote, "").trim() || null;
+  const packageComment = isOfficePackage
+    ? lot.nature === "Parking" ? "Parking rattaché à l’ensemble de bureaux acquis." : "Lot principal de l’ensemble de bureaux acquis."
+    : null;
   return {
     ...lot,
+    ...category,
     proprietaire: owner?.proprietaire ?? null,
     type: owner?.type ?? lot.type,
     adresse: lot.adresse ?? owner?.adresse ?? null,
@@ -75,15 +90,16 @@ const masterLots = lots.map((lot) => {
     lotsDuProprietaire: owner ? ownerLots[owner.proprietaire]?.length ?? null : null,
     prochaineAction: owner?.prochaineAction ?? null,
     pourquoi: owner?.pourquoi ?? null,
+    ensemble: isOfficePackage ? "Ensemble de bureaux acquis · LOFI OFFICE" : null,
     preuve: direct ? "Pièce directe" : "Recoupé AG 2024/2026",
     preuveDirecte: direct,
-    commentaires: lot.commentaires?.replace(obsoleteOwnershipNote, "").trim() || null,
-    sourcesFusion: [lot.sources, owner?.sources, "Feuille de présence AG 07/10/2024"].filter(Boolean).join(" · "),
+    commentaires: [packageComment, cleanedComment].filter(Boolean).join(" ") || null,
+    sourcesFusion: [lot.sources, owner?.sources, "Feuille de présence AG 07/10/2024", isOfficePackage ? "Information fournie par Dimitri" : null].filter(Boolean).join(" · "),
   };
 });
 
 const blocks = [
-  { priority: "P0", name: "Bureaux LOFI OFFICE", lots: "12, 24, 29–34, 44, 53", levels: "RDC + rez-de-jardin + parkings", tantiemes: 1243, owner: "SARL IMMOVILLIERS", note: "Promesse 3,8 M€ · échéance 30/11/2026" },
+  { priority: "P0", name: "Ensemble de bureaux LOFI OFFICE", lots: "Bureaux 44 + 53 · parkings 12, 24, 29–34", levels: "RDC + rez-de-jardin + 8 parkings accessoires", tantiemes: 1243, owner: "Ensemble acquis", note: "Les parkings restent classés comme parkings et sont rattachés au bureau" },
   { priority: "P1", name: "Plateaux 1er + 2e", lots: "54 + 55", levels: "1er et 2e étages", tantiemes: 1670, owner: "SCI SC 98 BV + SCI SC 98 HV", note: "Deux plateaux de bureaux de 835 tantièmes chacun" },
   { priority: "P1", name: "Derniers niveaux", lots: "84 + 85", levels: "8e–9e étages", tantiemes: 1596, owner: "ARMENGAUD Marie-Hélène + SOMOGUY Dimitri", note: "Regroupement du sommet de l’immeuble" },
   { priority: "P1", name: "5e étage", lots: "90 + 91 + 93 + 94", levels: "5e étage", tantiemes: 930, owner: "FELMY-FRAISSE · DUBLANC · VILLIERS PRESTIGE · DE GASTE", note: "Regroupement horizontal à confirmer" },
@@ -98,11 +114,12 @@ const text = (value: unknown) => value === null || value === undefined || value 
 const money = (value: unknown) => typeof value === "number" ? euro.format(value) : "—";
 const pct = (value: unknown) => typeof value === "number" ? `${number.format(value * 100)} %` : "—";
 
-type SortKey = "lot" | "nature" | "floor" | "surface" | "tantiemes" | "owner" | "proof" | "ownerWeight" | "contactPriority" | "acquisition" | "value" | "potential";
+type SortKey = "lot" | "category" | "nature" | "floor" | "surface" | "tantiemes" | "owner" | "proof" | "ownerWeight" | "contactPriority" | "acquisition" | "value" | "potential";
 type SortDirection = "asc" | "desc";
 
 const sortOptions: Array<{ value: SortKey; label: string }> = [
   { value: "lot", label: "Numéro de lot" },
+  { value: "category", label: "Catégorie" },
   { value: "nature", label: "Nature" },
   { value: "floor", label: "Étage" },
   { value: "surface", label: "Surface" },
@@ -118,32 +135,37 @@ const sortOptions: Array<{ value: SortKey; label: string }> = [
 
 const floorOrder = ["5e sous-sol", "4e sous-sol", "3e sous-sol", "2e sous-sol", "1er sous-sol", "1er sous-sol (rez-de-jardin)", "Rez-de-chaussée", "1er étage", "2e étage", "3e étage", "4e étage", "5e étage", "6e étage", "7e étage", "8e et 9e étages"];
 const priorityOrder: Record<string, number> = { P0: 0, P1: 1, P2: 2, P3: 3 };
+const categoryOrder: Record<string, number> = { Parkings: 0, Caves: 1, "Bureaux / commerces": 2, Habitations: 3 };
 
 export default function Home() {
   const [query, setQuery] = useState("");
+  const [category, setCategory] = useState("Toutes");
   const [nature, setNature] = useState("Toutes");
   const [floor, setFloor] = useState("Tous");
   const [priority, setPriority] = useState("Toutes");
   const [proof, setProof] = useState("Toutes");
-  const [sortKey, setSortKey] = useState<SortKey>("lot");
+  const [sortKey, setSortKey] = useState<SortKey>("category");
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
 
   const natures = useMemo(() => ["Toutes", ...Array.from(new Set(masterLots.map((lot) => lot.nature).filter(Boolean))).sort()], []);
   const floors = useMemo(() => ["Tous", ...Array.from(new Set(masterLots.map((lot) => lot.etage).filter(Boolean))).sort()], []);
+  const categoryCounts = useMemo(() => Object.fromEntries(["Parkings", "Caves", "Bureaux / commerces", "Habitations"].map((item) => [item, masterLots.filter((lot) => lot.categorie === item).length])), []);
   const visibleLots = useMemo(() => {
     const q = query.trim().toLocaleLowerCase("fr");
     const filtered = masterLots.filter((lot) => {
-      const matchesQuery = !q || [lot.lot, lot.nature, lot.etage, lot.proprietaire, lot.type, lot.adresse, lot.commentaires, lot.sourcesFusion].some((value) => text(value).toLocaleLowerCase("fr").includes(q));
+      const matchesQuery = !q || [lot.lot, lot.categorie, lot.nature, lot.etage, lot.proprietaire, lot.type, lot.ensemble, lot.adresse, lot.commentaires, lot.sourcesFusion].some((value) => text(value).toLocaleLowerCase("fr").includes(q));
+      const matchesCategory = category === "Toutes" || lot.categorie === category;
       const matchesNature = nature === "Toutes" || lot.nature === nature;
       const matchesFloor = floor === "Tous" || lot.etage === floor;
       const matchesPriority = priority === "Toutes" || lot.prioriteContact === priority;
       const matchesProof = proof === "Toutes" || (proof === "Directe" ? lot.preuveDirecte : !lot.preuveDirecte);
-      return matchesQuery && matchesNature && matchesFloor && matchesPriority && matchesProof;
+      return matchesQuery && matchesCategory && matchesNature && matchesFloor && matchesPriority && matchesProof;
     });
 
     const sortValue = (lot: (typeof masterLots)[number]): string | number => {
       switch (sortKey) {
         case "lot": return lot.lot;
+        case "category": return categoryOrder[lot.categorie] ?? 99;
         case "nature": return lot.nature ?? "";
         case "floor": return floorOrder.indexOf(lot.etage ?? "");
         case "surface": return lot.surface ?? -1;
@@ -164,9 +186,10 @@ export default function Home() {
       const comparison = typeof aValue === "number" && typeof bValue === "number"
         ? aValue - bValue
         : String(aValue).localeCompare(String(bValue), "fr", { numeric: true, sensitivity: "base" });
-      return sortDirection === "asc" ? comparison : -comparison;
+      const directed = sortDirection === "asc" ? comparison : -comparison;
+      return directed || a.lot - b.lot;
     });
-  }, [query, nature, floor, priority, proof, sortKey, sortDirection]);
+  }, [query, category, nature, floor, priority, proof, sortKey, sortDirection]);
 
   const changeSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -187,11 +210,12 @@ export default function Home() {
 
   const resetFilters = () => {
     setQuery("");
+    setCategory("Toutes");
     setNature("Toutes");
     setFloor("Tous");
     setPriority("Toutes");
     setProof("Toutes");
-    setSortKey("lot");
+    setSortKey("category");
     setSortDirection("asc");
   };
 
@@ -218,8 +242,18 @@ export default function Home() {
       <section className="section lots-section">
         <div className="section-title"><div><span className="eyebrow copper">TABLEAU UNIQUE</span><h2>Base complète de l’immeuble</h2><p>Une ligne correspond à un lot juridique précis. Les coordonnées inconnues restent vides.</p></div><strong>{visibleLots.length} / 85 lots affichés</strong></div>
 
+        <div className="category-strip" aria-label="Catégories de lots">
+          {[
+            { name: "Parkings", slug: "parking", detail: "Emplacements seuls ou accessoires" },
+            { name: "Caves", slug: "cave", detail: "Caves et annexes privatives" },
+            { name: "Bureaux / commerces", slug: "bureau", detail: "Locaux professionnels" },
+            { name: "Habitations", slug: "habitation", detail: "Studios, chambres et appartements" },
+          ].map((item) => <button key={item.name} type="button" className={`category-card ${item.slug} ${category === item.name ? "active" : ""}`} onClick={() => setCategory(category === item.name ? "Toutes" : item.name)} aria-pressed={category === item.name}><span>{item.name}</span><strong>{categoryCounts[item.name]}</strong><small>{item.detail}</small></button>)}
+        </div>
+
         <div className="filters master-filters">
           <label className="search"><span>Rechercher</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Lot, propriétaire, étage, source…" /></label>
+          <label><span>Catégorie</span><select value={category} onChange={(event) => setCategory(event.target.value)}><option>Toutes</option><option>Parkings</option><option>Caves</option><option>Bureaux / commerces</option><option>Habitations</option></select></label>
           <label><span>Nature</span><select value={nature} onChange={(event) => setNature(event.target.value)}>{natures.map((item) => <option key={item}>{item}</option>)}</select></label>
           <label><span>Étage</span><select value={floor} onChange={(event) => setFloor(event.target.value)}>{floors.map((item) => <option key={item}>{item}</option>)}</select></label>
           <label><span>Priorité contact</span><select value={priority} onChange={(event) => setPriority(event.target.value)}><option>Toutes</option><option>P0</option><option>P1</option><option>P2</option><option>P3</option></select></label>
@@ -231,10 +265,12 @@ export default function Home() {
 
         <div className="table-shell master-table-shell">
           <table className="lots-table master-table">
-            <thead><tr>{sortHeader("lot", "Lot")}{sortHeader("nature", "Nature")}{sortHeader("floor", "Étage")}{sortHeader("surface", "Surface")}{sortHeader("tantiemes", "Tantièmes")}{sortHeader("owner", "Propriétaire actuel")}{sortHeader("proof", "Niveau de preuve")}<th>Type</th>{sortHeader("ownerWeight", "Poids du propriétaire")}<th>Coordonnées</th>{sortHeader("contactPriority", "Priorité contact")}{sortHeader("acquisition", "Acquisition")}{sortHeader("value", "Valeur estimée")}{sortHeader("potential", "Potentiel lot")}<th>Commentaires</th><th>Sources</th></tr></thead>
+            <thead><tr>{sortHeader("lot", "Lot")}{sortHeader("category", "Catégorie")}{sortHeader("nature", "Nature")}<th>Ensemble rattaché</th>{sortHeader("floor", "Étage")}{sortHeader("surface", "Surface")}{sortHeader("tantiemes", "Tantièmes")}{sortHeader("owner", "Propriétaire actuel")}{sortHeader("proof", "Niveau de preuve")}<th>Type</th>{sortHeader("ownerWeight", "Poids du propriétaire")}<th>Coordonnées</th>{sortHeader("contactPriority", "Priorité contact")}{sortHeader("acquisition", "Acquisition")}{sortHeader("value", "Valeur estimée")}{sortHeader("potential", "Potentiel lot")}<th>Commentaires</th><th>Sources</th></tr></thead>
             <tbody>{visibleLots.map((lot) => <tr key={lot.lot} className={lot.preuveDirecte ? "direct-row" : "cross-row"}>
               <td className="sticky-col"><span className="lot-number">{lot.lot}</span></td>
+              <td><span className={`category-chip ${lot.categorieSlug}`}>{lot.categorie}</span></td>
               <td><strong>{text(lot.nature)}</strong></td>
+              <td className="ensemble-cell">{lot.ensemble ? <span className="ensemble-badge">{lot.ensemble}</span> : "—"}</td>
               <td className="floor-cell">{text(lot.etage)}</td>
               <td className="numeric">{lot.surface ? `${number.format(lot.surface)} m²` : "—"}</td>
               <td className="numeric strong-number">{number.format(lot.tantiemes)}</td>
