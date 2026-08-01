@@ -98,18 +98,41 @@ const text = (value: unknown) => value === null || value === undefined || value 
 const money = (value: unknown) => typeof value === "number" ? euro.format(value) : "—";
 const pct = (value: unknown) => typeof value === "number" ? `${number.format(value * 100)} %` : "—";
 
+type SortKey = "lot" | "nature" | "floor" | "surface" | "tantiemes" | "owner" | "proof" | "ownerWeight" | "contactPriority" | "acquisition" | "value" | "potential";
+type SortDirection = "asc" | "desc";
+
+const sortOptions: Array<{ value: SortKey; label: string }> = [
+  { value: "lot", label: "Numéro de lot" },
+  { value: "nature", label: "Nature" },
+  { value: "floor", label: "Étage" },
+  { value: "surface", label: "Surface" },
+  { value: "tantiemes", label: "Tantièmes du lot" },
+  { value: "owner", label: "Propriétaire" },
+  { value: "proof", label: "Niveau de preuve" },
+  { value: "ownerWeight", label: "Poids du propriétaire" },
+  { value: "contactPriority", label: "Priorité de contact" },
+  { value: "acquisition", label: "Date d’acquisition" },
+  { value: "value", label: "Valeur estimée" },
+  { value: "potential", label: "Potentiel du lot" },
+];
+
+const floorOrder = ["5e sous-sol", "4e sous-sol", "3e sous-sol", "2e sous-sol", "1er sous-sol", "1er sous-sol (rez-de-jardin)", "Rez-de-chaussée", "1er étage", "2e étage", "3e étage", "4e étage", "5e étage", "6e étage", "7e étage", "8e et 9e étages"];
+const priorityOrder: Record<string, number> = { P0: 0, P1: 1, P2: 2, P3: 3 };
+
 export default function Home() {
   const [query, setQuery] = useState("");
   const [nature, setNature] = useState("Toutes");
   const [floor, setFloor] = useState("Tous");
   const [priority, setPriority] = useState("Toutes");
   const [proof, setProof] = useState("Toutes");
+  const [sortKey, setSortKey] = useState<SortKey>("lot");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
 
   const natures = useMemo(() => ["Toutes", ...Array.from(new Set(masterLots.map((lot) => lot.nature).filter(Boolean))).sort()], []);
   const floors = useMemo(() => ["Tous", ...Array.from(new Set(masterLots.map((lot) => lot.etage).filter(Boolean))).sort()], []);
   const visibleLots = useMemo(() => {
     const q = query.trim().toLocaleLowerCase("fr");
-    return masterLots.filter((lot) => {
+    const filtered = masterLots.filter((lot) => {
       const matchesQuery = !q || [lot.lot, lot.nature, lot.etage, lot.proprietaire, lot.type, lot.adresse, lot.commentaires, lot.sourcesFusion].some((value) => text(value).toLocaleLowerCase("fr").includes(q));
       const matchesNature = nature === "Toutes" || lot.nature === nature;
       const matchesFloor = floor === "Tous" || lot.etage === floor;
@@ -117,7 +140,50 @@ export default function Home() {
       const matchesProof = proof === "Toutes" || (proof === "Directe" ? lot.preuveDirecte : !lot.preuveDirecte);
       return matchesQuery && matchesNature && matchesFloor && matchesPriority && matchesProof;
     });
-  }, [query, nature, floor, priority, proof]);
+
+    const sortValue = (lot: (typeof masterLots)[number]): string | number => {
+      switch (sortKey) {
+        case "lot": return lot.lot;
+        case "nature": return lot.nature ?? "";
+        case "floor": return floorOrder.indexOf(lot.etage ?? "");
+        case "surface": return lot.surface ?? -1;
+        case "tantiemes": return lot.tantiemes;
+        case "owner": return lot.proprietaire ?? "";
+        case "proof": return lot.preuveDirecte ? 0 : 1;
+        case "ownerWeight": return lot.tantiemesProprietaire ?? -1;
+        case "contactPriority": return priorityOrder[lot.prioriteContact ?? ""] ?? 99;
+        case "acquisition": return lot.dateAcquisition ? new Date(lot.dateAcquisition).getTime() : -1;
+        case "value": return lot.valeurEstimee ?? -1;
+        case "potential": return priorityOrder[lot.potentiel ?? ""] ?? 99;
+      }
+    };
+
+    return filtered.sort((a, b) => {
+      const aValue = sortValue(a);
+      const bValue = sortValue(b);
+      const comparison = typeof aValue === "number" && typeof bValue === "number"
+        ? aValue - bValue
+        : String(aValue).localeCompare(String(bValue), "fr", { numeric: true, sensitivity: "base" });
+      return sortDirection === "asc" ? comparison : -comparison;
+    });
+  }, [query, nature, floor, priority, proof, sortKey, sortDirection]);
+
+  const changeSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDirection((direction) => direction === "asc" ? "desc" : "asc");
+      return;
+    }
+    setSortKey(key);
+    setSortDirection(["surface", "tantiemes", "ownerWeight", "value"].includes(key) ? "desc" : "asc");
+  };
+
+  const sortHeader = (key: SortKey, label: string) => (
+    <th aria-sort={sortKey === key ? (sortDirection === "asc" ? "ascending" : "descending") : "none"}>
+      <button type="button" className={`sort-header ${sortKey === key ? "active" : ""}`} onClick={() => changeSort(key)} title={`Trier par ${label.toLocaleLowerCase("fr")}`}>
+        <span>{label}</span><i aria-hidden="true">{sortKey === key ? (sortDirection === "asc" ? "↑" : "↓") : "↕"}</i>
+      </button>
+    </th>
+  );
 
   const resetFilters = () => {
     setQuery("");
@@ -125,6 +191,8 @@ export default function Home() {
     setFloor("Tous");
     setPriority("Toutes");
     setProof("Toutes");
+    setSortKey("lot");
+    setSortDirection("asc");
   };
 
   return (
@@ -156,12 +224,14 @@ export default function Home() {
           <label><span>Étage</span><select value={floor} onChange={(event) => setFloor(event.target.value)}>{floors.map((item) => <option key={item}>{item}</option>)}</select></label>
           <label><span>Priorité contact</span><select value={priority} onChange={(event) => setPriority(event.target.value)}><option>Toutes</option><option>P0</option><option>P1</option><option>P2</option><option>P3</option></select></label>
           <label><span>Preuve</span><select value={proof} onChange={(event) => setProof(event.target.value)}><option>Toutes</option><option>Directe</option><option>Recoupée</option></select></label>
+          <label><span>Trier par</span><select value={sortKey} onChange={(event) => setSortKey(event.target.value as SortKey)}>{sortOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+          <label><span>Ordre</span><select value={sortDirection} onChange={(event) => setSortDirection(event.target.value as SortDirection)}><option value="asc">Croissant ↑</option><option value="desc">Décroissant ↓</option></select></label>
           <button type="button" onClick={resetFilters}>Réinitialiser les filtres</button>
         </div>
 
         <div className="table-shell master-table-shell">
           <table className="lots-table master-table">
-            <thead><tr><th>Lot</th><th>Nature</th><th>Étage</th><th>Surface</th><th>Tantièmes</th><th>Propriétaire actuel</th><th>Niveau de preuve</th><th>Type</th><th>Poids du propriétaire</th><th>Coordonnées</th><th>Priorité contact</th><th>Acquisition</th><th>Valeur estimée</th><th>Potentiel lot</th><th>Commentaires</th><th>Sources</th></tr></thead>
+            <thead><tr>{sortHeader("lot", "Lot")}{sortHeader("nature", "Nature")}{sortHeader("floor", "Étage")}{sortHeader("surface", "Surface")}{sortHeader("tantiemes", "Tantièmes")}{sortHeader("owner", "Propriétaire actuel")}{sortHeader("proof", "Niveau de preuve")}<th>Type</th>{sortHeader("ownerWeight", "Poids du propriétaire")}<th>Coordonnées</th>{sortHeader("contactPriority", "Priorité contact")}{sortHeader("acquisition", "Acquisition")}{sortHeader("value", "Valeur estimée")}{sortHeader("potential", "Potentiel lot")}<th>Commentaires</th><th>Sources</th></tr></thead>
             <tbody>{visibleLots.map((lot) => <tr key={lot.lot} className={lot.preuveDirecte ? "direct-row" : "cross-row"}>
               <td className="sticky-col"><span className="lot-number">{lot.lot}</span></td>
               <td><strong>{text(lot.nature)}</strong></td>
