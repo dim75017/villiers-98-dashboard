@@ -114,64 +114,94 @@ const text = (value: unknown) => value === null || value === undefined || value 
 const money = (value: unknown) => typeof value === "number" ? euro.format(value) : "—";
 const pct = (value: unknown) => typeof value === "number" ? `${number.format(value * 100)} %` : "—";
 
-type SortKey = "lot" | "category" | "floor" | "surface" | "owner" | "ownerWeight" | "acquisition" | "value";
+type MasterLot = (typeof masterLots)[number];
+type SortKey = "owner" | "lotCount" | "ownerWeight" | "value" | "firstLot";
 type SortDirection = "asc" | "desc";
 
 const sortOptions: Array<{ value: SortKey; label: string }> = [
-  { value: "lot", label: "Numéro de lot" },
-  { value: "category", label: "Catégorie" },
-  { value: "floor", label: "Étage" },
-  { value: "surface", label: "Surface" },
   { value: "owner", label: "Propriétaire" },
+  { value: "lotCount", label: "Nombre de lots" },
   { value: "ownerWeight", label: "Poids du propriétaire" },
-  { value: "acquisition", label: "Date d’acquisition" },
-  { value: "value", label: "Valeur estimée" },
+  { value: "value", label: "Valeur cumulée" },
+  { value: "firstLot", label: "Premier numéro de lot" },
 ];
 
-const floorOrder = ["5e sous-sol", "4e sous-sol", "3e sous-sol", "2e sous-sol", "1er sous-sol", "1er sous-sol (rez-de-jardin)", "Rez-de-chaussée", "1er étage", "2e étage", "3e étage", "4e étage", "5e étage", "6e étage", "7e étage", "8e et 9e étages"];
-const categoryOrder: Record<string, number> = { Parkings: 0, Caves: 1, "Bureaux / commerces": 2, Habitations: 3 };
+const categoryNames = ["Parkings", "Caves", "Bureaux / commerces", "Habitations"];
 
 export default function Home() {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("Toutes");
   const [floor, setFloor] = useState("Tous");
-  const [sortKey, setSortKey] = useState<SortKey>("category");
-  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+  const [sortKey, setSortKey] = useState<SortKey>("ownerWeight");
+  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
   const floors = useMemo(() => ["Tous", ...Array.from(new Set(masterLots.map((lot) => lot.etage).filter(Boolean))).sort()], []);
-  const categoryCounts = useMemo(() => Object.fromEntries(["Parkings", "Caves", "Bureaux / commerces", "Habitations"].map((item) => [item, masterLots.filter((lot) => lot.categorie === item).length])), []);
+  const categoryCounts = useMemo(() => Object.fromEntries(categoryNames.map((item) => [item, masterLots.filter((lot) => lot.categorie === item).length])), []);
   const visibleLots = useMemo(() => {
     const q = query.trim().toLocaleLowerCase("fr");
-    const filtered = masterLots.filter((lot) => {
+    return masterLots.filter((lot) => {
       const matchesQuery = !q || [lot.lot, lot.categorie, lot.nature, lot.etage, lot.proprietaire, lot.type, lot.ensemble, lot.adresse, lot.commentaires, lot.sourcesFusion].some((value) => text(value).toLocaleLowerCase("fr").includes(q));
       const matchesCategory = category === "Toutes" || lot.categorie === category;
       const matchesFloor = floor === "Tous" || lot.etage === floor;
       return matchesQuery && matchesCategory && matchesFloor;
     });
+  }, [query, category, floor]);
 
-    const sortValue = (lot: (typeof masterLots)[number]): string | number => {
+  const ownerGroups = useMemo(() => {
+    const grouped = new Map<string, MasterLot[]>();
+    visibleLots.forEach((lot) => {
+      const ownerName = lot.proprietaire ?? "À identifier";
+      const current = grouped.get(ownerName) ?? [];
+      current.push(lot);
+      grouped.set(ownerName, current);
+    });
+
+    const rows = Array.from(grouped.entries()).map(([ownerName, filteredLots]) => {
+      const sortedLots = [...filteredLots].sort((a, b) => a.lot - b.lot);
+      const first = sortedLots[0];
+      const acquisitions = Array.from(new Map(sortedLots
+        .filter((lot) => lot.dateAcquisition || lot.prixAcquisition)
+        .map((lot) => [`${lot.dateAcquisition ?? ""}|${lot.prixAcquisition ?? ""}`, { date: lot.dateAcquisition, price: lot.prixAcquisition }])).values());
+      return {
+        ownerName,
+        type: first.type,
+        address: first.adresse,
+        phone: first.telephone,
+        email: first.email,
+        ownerWeight: first.tantiemesProprietaire ?? 0,
+        ownerShare: first.partProprietaire,
+        totalOwnerLots: first.lotsDuProprietaire ?? sortedLots.length,
+        lots: sortedLots,
+        categories: categoryNames.map((name) => ({ name, count: sortedLots.filter((lot) => lot.categorie === name).length })).filter((item) => item.count > 0),
+        floors: Array.from(new Set(sortedLots.map((lot) => lot.etage).filter(Boolean))),
+        knownSurface: sortedLots.reduce((sum, lot) => sum + (lot.surface ?? 0), 0),
+        surfaceCount: sortedLots.filter((lot) => typeof lot.surface === "number").length,
+        value: sortedLots.reduce((sum, lot) => sum + (lot.valeurEstimee ?? 0), 0),
+        acquisitions,
+        sources: Array.from(new Set(sortedLots.flatMap((lot) => lot.sourcesFusion.split(" · ")))).join(" · "),
+      };
+    });
+
+    const sortValue = (row: (typeof rows)[number]): string | number => {
       switch (sortKey) {
-        case "lot": return lot.lot;
-        case "category": return categoryOrder[lot.categorie] ?? 99;
-        case "floor": return floorOrder.indexOf(lot.etage ?? "");
-        case "surface": return lot.surface ?? -1;
-        case "owner": return lot.proprietaire ?? "";
-        case "ownerWeight": return lot.tantiemesProprietaire ?? -1;
-        case "acquisition": return lot.dateAcquisition ? new Date(lot.dateAcquisition).getTime() : -1;
-        case "value": return lot.valeurEstimee ?? -1;
+        case "owner": return row.ownerName;
+        case "lotCount": return row.lots.length;
+        case "ownerWeight": return row.ownerWeight;
+        case "value": return row.value;
+        case "firstLot": return row.lots[0]?.lot ?? 999;
       }
     };
 
-    return filtered.sort((a, b) => {
+    return rows.sort((a, b) => {
       const aValue = sortValue(a);
       const bValue = sortValue(b);
       const comparison = typeof aValue === "number" && typeof bValue === "number"
         ? aValue - bValue
         : String(aValue).localeCompare(String(bValue), "fr", { numeric: true, sensitivity: "base" });
       const directed = sortDirection === "asc" ? comparison : -comparison;
-      return directed || a.lot - b.lot;
+      return directed || a.ownerName.localeCompare(b.ownerName, "fr");
     });
-  }, [query, category, floor, sortKey, sortDirection]);
+  }, [visibleLots, sortKey, sortDirection]);
 
   const changeSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -179,7 +209,7 @@ export default function Home() {
       return;
     }
     setSortKey(key);
-    setSortDirection(["surface", "ownerWeight", "value"].includes(key) ? "desc" : "asc");
+    setSortDirection(["lotCount", "ownerWeight", "value"].includes(key) ? "desc" : "asc");
   };
 
   const sortHeader = (key: SortKey, label: string) => (
@@ -194,8 +224,8 @@ export default function Home() {
     setQuery("");
     setCategory("Toutes");
     setFloor("Tous");
-    setSortKey("category");
-    setSortDirection("asc");
+    setSortKey("ownerWeight");
+    setSortDirection("desc");
   };
 
   return (
@@ -206,8 +236,8 @@ export default function Home() {
       </header>
 
       <section className="hero">
-        <span className="eyebrow copper">BASE MAÎTRE LOT × PROPRIÉTAIRE</span>
-        <div className="hero-heading"><div><h1>Chaque lot. Son propriétaire. Une seule ligne.</h1><p>Les 85 lots sont reliés aux 44 copropriétaires, avec l’étage, les tantièmes, le CRM et le niveau de preuve.</p></div><span className="proof-badge">85 / 85 lots associés</span></div>
+        <span className="eyebrow copper">BASE MAÎTRE PAR PROPRIÉTAIRE</span>
+        <div className="hero-heading"><div><h1>Chaque propriétaire. Tous ses lots. Un seul bloc.</h1><p>Les 85 lots sont regroupés sous leurs 44 copropriétaires pour visualiser immédiatement chaque portefeuille.</p></div><span className="proof-badge">44 groupes propriétaires</span></div>
         <div className="metrics">
           <article><small>Lots associés</small><strong>85</strong><p>100 % de l’immeuble relié</p></article>
           <article><small>Copropriétaires</small><strong>44</strong><p>Liste actuelle issue de l’AG 2026</p></article>
@@ -218,7 +248,7 @@ export default function Home() {
       </section>
 
       <section className="section lots-section">
-        <div className="section-title"><div><span className="eyebrow copper">TABLEAU UNIQUE</span><h2>Base complète de l’immeuble</h2><p>Une ligne correspond à un lot juridique précis. Les coordonnées inconnues restent vides.</p></div><strong>{visibleLots.length} / 85 lots affichés</strong></div>
+        <div className="section-title"><div><span className="eyebrow copper">TABLEAU REGROUPÉ</span><h2>Portefeuille de chaque copropriétaire</h2><p>Une ligne correspond à un propriétaire ; tous ses lots sont réunis dans la même cellule.</p></div><strong>{ownerGroups.length} propriétaires · {visibleLots.length} / 85 lots</strong></div>
 
         <div className="category-strip" aria-label="Catégories de lots">
           {[
@@ -239,20 +269,20 @@ export default function Home() {
         </div>
 
         <div className="table-shell master-table-shell">
-          <table className="lots-table master-table">
-            <thead><tr>{sortHeader("lot", "Lot")}{sortHeader("category", "Catégorie")}{sortHeader("floor", "Étage")}{sortHeader("surface", "Surface")}{sortHeader("owner", "Propriétaire actuel")}<th>Type</th>{sortHeader("ownerWeight", "Poids du propriétaire")}<th>Coordonnées</th>{sortHeader("acquisition", "Acquisition")}{sortHeader("value", "Valeur estimée")}<th>Sources</th></tr></thead>
-            <tbody>{visibleLots.map((lot) => <tr key={lot.lot} className={lot.preuveDirecte ? "direct-row" : "cross-row"}>
-              <td className="sticky-col"><span className="lot-number">{lot.lot}</span></td>
-              <td><span className={`category-chip ${lot.categorieSlug}`}>{lot.categorie}</span></td>
-              <td className="floor-cell">{text(lot.etage)}</td>
-              <td className="numeric">{lot.surface ? `${number.format(lot.surface)} m²` : "—"}</td>
-              <td className="owner-known"><strong>{text(lot.proprietaire)}</strong></td>
-              <td>{text(lot.type)}</td>
-              <td className="stacked owner-weight"><strong>{number.format(lot.tantiemesProprietaire)} tantièmes · {pct(lot.partProprietaire)}</strong><span>{lot.lotsDuProprietaire} lot{lot.lotsDuProprietaire === 1 ? "" : "s"} détenu{lot.lotsDuProprietaire === 1 ? "" : "s"}</span></td>
-              <td className="stacked contact-cell"><span>{text(lot.adresse)}</span>{lot.telephone && <a href={`tel:${lot.telephone}`}>{lot.telephone}</a>}{lot.email && <a href={`mailto:${lot.email}`}>{lot.email}</a>}</td>
-              <td className="stacked"><span>{text(lot.dateAcquisition)}</span><strong>{money(lot.prixAcquisition)}</strong></td>
-              <td className="numeric value-cell">{money(lot.valeurEstimee)}</td>
-              <td><span className="source-chip">{lot.sourcesFusion}</span></td>
+          <table className="grouped-table">
+            <thead><tr>{sortHeader("owner", "Propriétaire")}<th>Type</th>{sortHeader("lotCount", "Lots regroupés")}<th>Répartition</th><th>Étages</th><th>Surface documentée</th>{sortHeader("ownerWeight", "Poids du propriétaire")}<th>Coordonnées</th><th>Acquisition(s)</th>{sortHeader("value", "Valeur cumulée")}<th>Sources</th></tr></thead>
+            <tbody>{ownerGroups.map((group) => <tr key={group.ownerName}>
+              <td className="owner-sticky"><strong>{group.ownerName}</strong><small>{group.lots.length === group.totalOwnerLots ? `${group.totalOwnerLots} lot${group.totalOwnerLots === 1 ? "" : "s"}` : `${group.lots.length} affiché${group.lots.length === 1 ? "" : "s"} sur ${group.totalOwnerLots}`}</small></td>
+              <td>{text(group.type)}</td>
+              <td className="lots-group-cell"><div className="group-lots">{group.lots.map((lot) => <span key={lot.lot} className={`group-lot-chip ${lot.categorieSlug}`}><b>Lot {lot.lot}</b><small>{lot.categorie} · {lot.etage}</small></span>)}</div></td>
+              <td className="category-breakdown">{group.categories.map((item) => <span key={item.name}><b>{item.count}</b> {item.name.toLocaleLowerCase("fr")}</span>)}</td>
+              <td className="floors-list">{group.floors.map((item) => <span key={item}>{item}</span>)}</td>
+              <td className="numeric">{group.surfaceCount ? <><strong>{number.format(group.knownSurface)} m²</strong><small>{group.surfaceCount} lot{group.surfaceCount === 1 ? "" : "s"} renseigné{group.surfaceCount === 1 ? "" : "s"}</small></> : "—"}</td>
+              <td className="stacked owner-weight"><strong>{number.format(group.ownerWeight)} tantièmes · {pct(group.ownerShare)}</strong><span>{group.totalOwnerLots} lot{group.totalOwnerLots === 1 ? "" : "s"} détenu{group.totalOwnerLots === 1 ? "" : "s"}</span></td>
+              <td className="stacked contact-cell"><span>{text(group.address)}</span>{group.phone && <a href={`tel:${group.phone}`}>{group.phone}</a>}{group.email && <a href={`mailto:${group.email}`}>{group.email}</a>}</td>
+              <td className="acquisition-list">{group.acquisitions.length ? group.acquisitions.map((item, index) => <span key={`${item.date}-${item.price}-${index}`}><b>{text(item.date)}</b>{item.price ? money(item.price) : ""}</span>) : "—"}</td>
+              <td className="numeric value-cell"><strong>{money(group.value)}</strong></td>
+              <td className="group-sources"><span className="source-chip">{group.sources}</span></td>
             </tr>)}</tbody>
           </table>
         </div>
