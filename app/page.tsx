@@ -115,42 +115,28 @@ const money = (value: unknown) => typeof value === "number" ? euro.format(value)
 const pct = (value: unknown) => typeof value === "number" ? `${number.format(value * 100)} %` : "—";
 
 type MasterLot = (typeof masterLots)[number];
-type SortKey = "owner" | "lotCount" | "ownerWeight" | "value" | "firstLot";
+type SortKey = "owner" | "primaryLotCount" | "ownerWeight" | "value";
 type SortDirection = "asc" | "desc";
 
 const sortOptions: Array<{ value: SortKey; label: string }> = [
-  { value: "owner", label: "Propriétaire" },
-  { value: "lotCount", label: "Nombre de lots" },
-  { value: "ownerWeight", label: "Poids du propriétaire" },
-  { value: "value", label: "Valeur cumulée" },
-  { value: "firstLot", label: "Premier numéro de lot" },
+  { value: "ownerWeight", label: "Poids copropriété" },
+  { value: "value", label: "Valeur estimée" },
+  { value: "primaryLotCount", label: "Lots principaux" },
+  { value: "owner", label: "Nom" },
 ];
 
 const categoryNames = ["Parkings", "Caves", "Bureaux / commerces", "Habitations"];
+const primaryCategoryNames = ["Habitations", "Bureaux / commerces"];
 const categoryEmoji: Record<string, string> = { Parkings: "🅿️", Caves: "📦", "Bureaux / commerces": "💼", Habitations: "🏠" };
+const categoryShortName: Record<string, string> = { Parkings: "Parkings", Caves: "Caves", "Bureaux / commerces": "Bureaux / commerces", Habitations: "Habitations" };
 
 export default function Home() {
-  const [query, setQuery] = useState("");
-  const [category, setCategory] = useState("Toutes");
-  const [floor, setFloor] = useState("Tous");
   const [sortKey, setSortKey] = useState<SortKey>("ownerWeight");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
 
-  const floors = useMemo(() => ["Tous", ...Array.from(new Set(masterLots.map((lot) => lot.etage).filter(Boolean))).sort()], []);
-  const categoryCounts = useMemo(() => Object.fromEntries(categoryNames.map((item) => [item, masterLots.filter((lot) => lot.categorie === item).length])), []);
-  const visibleLots = useMemo(() => {
-    const q = query.trim().toLocaleLowerCase("fr");
-    return masterLots.filter((lot) => {
-      const matchesQuery = !q || [lot.lot, lot.categorie, lot.nature, lot.etage, lot.proprietaire, lot.type, lot.ensemble, lot.adresse, lot.commentaires, lot.sourcesFusion].some((value) => text(value).toLocaleLowerCase("fr").includes(q));
-      const matchesCategory = category === "Toutes" || lot.categorie === category;
-      const matchesFloor = floor === "Tous" || lot.etage === floor;
-      return matchesQuery && matchesCategory && matchesFloor;
-    });
-  }, [query, category, floor]);
-
   const ownerGroups = useMemo(() => {
     const grouped = new Map<string, MasterLot[]>();
-    visibleLots.forEach((lot) => {
+    masterLots.forEach((lot) => {
       const ownerName = lot.proprietaire ?? "À identifier";
       const current = grouped.get(ownerName) ?? [];
       current.push(lot);
@@ -163,6 +149,8 @@ export default function Home() {
       const acquisitions = Array.from(new Map(sortedLots
         .filter((lot) => lot.dateAcquisition || lot.prixAcquisition)
         .map((lot) => [`${lot.dateAcquisition ?? ""}|${lot.prixAcquisition ?? ""}`, { date: lot.dateAcquisition, price: lot.prixAcquisition }])).values());
+      const primaryLots = sortedLots.filter((lot) => primaryCategoryNames.includes(lot.categorie));
+      const accessoryLots = sortedLots.filter((lot) => !primaryCategoryNames.includes(lot.categorie));
       return {
         ownerName,
         type: first.type,
@@ -173,10 +161,13 @@ export default function Home() {
         ownerShare: first.partProprietaire,
         totalOwnerLots: first.lotsDuProprietaire ?? sortedLots.length,
         lots: sortedLots,
-        categories: categoryNames.map((name) => ({ name, count: sortedLots.filter((lot) => lot.categorie === name).length })).filter((item) => item.count > 0),
-        floors: Array.from(new Set(sortedLots.map((lot) => lot.etage).filter(Boolean))),
-        knownSurface: sortedLots.reduce((sum, lot) => sum + (lot.surface ?? 0), 0),
-        surfaceCount: sortedLots.filter((lot) => typeof lot.surface === "number").length,
+        primaryLots,
+        accessoryLots,
+        primaryLotCount: primaryLots.length,
+        primaryCategories: primaryCategoryNames.map((name) => ({ name, lots: primaryLots.filter((lot) => lot.categorie === name) })).filter((item) => item.lots.length > 0),
+        accessoryCategories: categoryNames.filter((name) => !primaryCategoryNames.includes(name)).map((name) => ({ name, lots: accessoryLots.filter((lot) => lot.categorie === name) })).filter((item) => item.lots.length > 0),
+        primarySurface: primaryLots.reduce((sum, lot) => sum + (lot.surface ?? 0), 0),
+        primarySurfaceCount: primaryLots.filter((lot) => typeof lot.surface === "number").length,
         value: sortedLots.reduce((sum, lot) => sum + (lot.valeurEstimee ?? 0), 0),
         acquisitions,
         sources: Array.from(new Set(sortedLots.flatMap((lot) => lot.sourcesFusion.split(" · ")))).join(" · "),
@@ -186,10 +177,9 @@ export default function Home() {
     const sortValue = (row: (typeof rows)[number]): string | number => {
       switch (sortKey) {
         case "owner": return row.ownerName;
-        case "lotCount": return row.lots.length;
+        case "primaryLotCount": return row.primaryLotCount;
         case "ownerWeight": return row.ownerWeight;
         case "value": return row.value;
-        case "firstLot": return row.lots[0]?.lot ?? 999;
       }
     };
 
@@ -202,7 +192,7 @@ export default function Home() {
       const directed = sortDirection === "asc" ? comparison : -comparison;
       return directed || a.ownerName.localeCompare(b.ownerName, "fr");
     });
-  }, [visibleLots, sortKey, sortDirection]);
+  }, [sortKey, sortDirection]);
 
   const changeSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -210,23 +200,7 @@ export default function Home() {
       return;
     }
     setSortKey(key);
-    setSortDirection(["lotCount", "ownerWeight", "value"].includes(key) ? "desc" : "asc");
-  };
-
-  const sortHeader = (key: SortKey, label: string) => (
-    <th aria-sort={sortKey === key ? (sortDirection === "asc" ? "ascending" : "descending") : "none"}>
-      <button type="button" className={`sort-header ${sortKey === key ? "active" : ""}`} onClick={() => changeSort(key)} title={`Trier par ${label.toLocaleLowerCase("fr")}`}>
-        <span>{label}</span><i aria-hidden="true">{sortKey === key ? (sortDirection === "asc" ? "↑" : "↓") : "↕"}</i>
-      </button>
-    </th>
-  );
-
-  const resetFilters = () => {
-    setQuery("");
-    setCategory("Toutes");
-    setFloor("Tous");
-    setSortKey("ownerWeight");
-    setSortDirection("desc");
+    setSortDirection(["primaryLotCount", "ownerWeight", "value"].includes(key) ? "desc" : "asc");
   };
 
   return (
@@ -249,44 +223,19 @@ export default function Home() {
       </section>
 
       <section className="section lots-section">
-        <div className="section-title"><div><span className="eyebrow copper">📊 TABLEAU REGROUPÉ</span><h2>🗃️ Portefeuille de chaque copropriétaire</h2><p>Une ligne correspond à un propriétaire ; tous ses lots sont réunis dans la même cellule.</p></div><strong>👥 {ownerGroups.length} propriétaires · 🧩 {visibleLots.length} / 85 lots</strong></div>
+        <div className="section-title"><div><span className="eyebrow copper">📊 PORTEFEUILLES PRIORITAIRES</span><h2>🏠 Habitations et 💼 bureaux d’abord</h2><p>Les parkings et caves restent associés à leur propriétaire, mais passent au second plan comme annexes.</p></div><strong>👥 {ownerGroups.length} propriétaires · 🧩 85 lots</strong></div>
 
-        <div className="category-strip" aria-label="Catégories de lots">
-          {[
-            { name: "Parkings", slug: "parking", icon: "🅿️", detail: "Emplacements seuls ou accessoires" },
-            { name: "Caves", slug: "cave", icon: "📦", detail: "Caves et annexes privatives" },
-            { name: "Bureaux / commerces", slug: "bureau", icon: "💼", detail: "Locaux professionnels" },
-            { name: "Habitations", slug: "habitation", icon: "🏠", detail: "Studios, chambres et appartements" },
-          ].map((item) => <button key={item.name} type="button" className={`category-card ${item.slug} ${category === item.name ? "active" : ""}`} onClick={() => setCategory(category === item.name ? "Toutes" : item.name)} aria-pressed={category === item.name}><span>{item.icon} {item.name}</span><strong>{categoryCounts[item.name]}</strong><small>{item.detail}</small></button>)}
-        </div>
+        <div className="portfolio-sort" aria-label="Tri des portefeuilles"><span>↕️ Trier par</span>{sortOptions.map((option) => <button key={option.value} type="button" className={sortKey === option.value ? "active" : ""} onClick={() => changeSort(option.value)}>{option.label} {sortKey === option.value && <b>{sortDirection === "asc" ? "↑" : "↓"}</b>}</button>)}</div>
 
-        <div className="filters master-filters">
-          <label className="search"><span>🔎 Rechercher</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Lot, propriétaire, étage, source…" /></label>
-          <label><span>🗂️ Catégorie</span><select value={category} onChange={(event) => setCategory(event.target.value)}><option>Toutes</option><option>Parkings</option><option>Caves</option><option>Bureaux / commerces</option><option>Habitations</option></select></label>
-          <label><span>🛗 Étage</span><select value={floor} onChange={(event) => setFloor(event.target.value)}>{floors.map((item) => <option key={item}>{item}</option>)}</select></label>
-          <label><span>↕️ Trier par</span><select value={sortKey} onChange={(event) => setSortKey(event.target.value as SortKey)}>{sortOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
-          <label><span>🔃 Ordre</span><select value={sortDirection} onChange={(event) => setSortDirection(event.target.value as SortDirection)}><option value="asc">Croissant ↑</option><option value="desc">Décroissant ↓</option></select></label>
-          <button type="button" onClick={resetFilters}>🧹 Réinitialiser les filtres</button>
-        </div>
+        <div className="portfolio-grid">
+          {ownerGroups.filter((group) => group.primaryLotCount > 0).map((group) => <article key={group.ownerName} className="portfolio-card">
+            <header><div><span className="portfolio-type">{text(group.type)}</span><h3>👤 {group.ownerName}</h3></div><div className="portfolio-weight"><strong>{number.format(group.ownerWeight)}</strong><span>tantièmes · {pct(group.ownerShare)}</span></div></header>
+            <div className="primary-categories">{group.primaryCategories.map((category) => <section key={category.name} className={`primary-category ${category.name === "Habitations" ? "habitation" : "bureau"}`}><h4>{categoryEmoji[category.name]} {categoryShortName[category.name]}</h4><div>{category.lots.map((lot) => <span key={lot.lot} className="primary-lot"><b>Lot {lot.lot}</b><small>{text(lot.etage)}{lot.surface ? ` · ${number.format(lot.surface)} m²` : ""}</small></span>)}</div></section>)}</div>
+            {group.accessoryLots.length > 0 && <div className="accessory-line">{group.accessoryCategories.map((category) => <span key={category.name}>{categoryEmoji[category.name]} {category.lots.length} {categoryShortName[category.name].toLocaleLowerCase("fr")} · lots {category.lots.map((lot) => lot.lot).join(", ")}</span>)}</div>}
+            <footer><span>{group.primarySurfaceCount ? `📐 ${number.format(group.primarySurface)} m² documentés` : "📐 Surface non documentée"}</span><span>{group.value ? `💶 ${money(group.value)}` : ""}</span><details><summary>Infos propriétaire</summary><div className="portfolio-details"><p><b>📬 Correspondance</b>{group.address ? text(group.address) : "Non renseignée"}{group.phone && <><br />{group.phone}</>}{group.email && <><br />{group.email}</>}</p><p><b>📅 Acquisition(s)</b>{group.acquisitions.length ? group.acquisitions.map((item, index) => <span key={`${item.date}-${item.price}-${index}`}>{text(item.date)}{item.price ? ` · ${money(item.price)}` : ""}</span>) : "Non renseignée"}</p><p><b>🔗 Sources</b>{group.sources}</p></div></details></footer>
+          </article>)}</div>
 
-        <div className="table-shell master-table-shell">
-          <table className="grouped-table">
-            <thead><tr>{sortHeader("owner", "👤 Propriétaire")}<th>🏷️ Type</th>{sortHeader("lotCount", "🧩 Lots regroupés")}<th>🗂️ Répartition</th><th>🛗 Étages</th><th>📐 Surface documentée</th>{sortHeader("ownerWeight", "⚖️ Poids du propriétaire")}<th>📬 Coordonnées</th><th>📅 Acquisition(s)</th>{sortHeader("value", "💶 Valeur cumulée")}<th>🔗 Sources</th></tr></thead>
-            <tbody>{ownerGroups.map((group) => <tr key={group.ownerName}>
-              <td className="owner-sticky"><strong>👤 {group.ownerName}</strong><small>🧩 {group.lots.length === group.totalOwnerLots ? `${group.totalOwnerLots} lot${group.totalOwnerLots === 1 ? "" : "s"}` : `${group.lots.length} affiché${group.lots.length === 1 ? "" : "s"} sur ${group.totalOwnerLots}`}</small></td>
-              <td>{text(group.type)}</td>
-              <td className="lots-group-cell"><div className="group-lots">{group.lots.map((lot) => <span key={lot.lot} className={`group-lot-chip ${lot.categorieSlug}`}><b>{lot.categorieEmoji} Lot {lot.lot}</b><small>{lot.categorie} · {lot.etage}</small></span>)}</div></td>
-              <td className="category-breakdown">{group.categories.map((item) => <span key={item.name}>{categoryEmoji[item.name]} <b>{item.count}</b> {item.name.toLocaleLowerCase("fr")}</span>)}</td>
-              <td className="floors-list">{group.floors.map((item) => <span key={item}>🛗 {item}</span>)}</td>
-              <td className="numeric">{group.surfaceCount ? <><strong>{number.format(group.knownSurface)} m²</strong><small>{group.surfaceCount} lot{group.surfaceCount === 1 ? "" : "s"} renseigné{group.surfaceCount === 1 ? "" : "s"}</small></> : "—"}</td>
-              <td className="stacked owner-weight"><strong>{number.format(group.ownerWeight)} tantièmes · {pct(group.ownerShare)}</strong><span>{group.totalOwnerLots} lot{group.totalOwnerLots === 1 ? "" : "s"} détenu{group.totalOwnerLots === 1 ? "" : "s"}</span></td>
-              <td className="stacked contact-cell"><span>{text(group.address)}</span>{group.phone && <a href={`tel:${group.phone}`}>{group.phone}</a>}{group.email && <a href={`mailto:${group.email}`}>{group.email}</a>}</td>
-              <td className="acquisition-list">{group.acquisitions.length ? group.acquisitions.map((item, index) => <span key={`${item.date}-${item.price}-${index}`}><b>{text(item.date)}</b>{item.price ? money(item.price) : ""}</span>) : "—"}</td>
-              <td className="numeric value-cell"><strong>{money(group.value)}</strong></td>
-              <td className="group-sources"><span className="source-chip">{group.sources}</span></td>
-            </tr>)}</tbody>
-          </table>
-        </div>
+        <section className="accessory-section"><div><span className="eyebrow">🅿️ 📦 ANNEXES SEULES</span><h3>Parkings et caves sans logement ni bureau associé</h3><p>Ils restent recensés, sans prendre la place des portefeuilles principaux.</p></div><div className="accessory-owner-list">{ownerGroups.filter((group) => group.primaryLotCount === 0).map((group) => <article key={group.ownerName}><div><strong>👤 {group.ownerName}</strong><small>{text(group.type)} · {number.format(group.ownerWeight)} tantièmes</small></div><p>{group.accessoryCategories.map((category) => <span key={category.name}>{categoryEmoji[category.name]} {category.lots.length} {categoryShortName[category.name].toLocaleLowerCase("fr")} : {category.lots.map((lot) => lot.lot).join(", ")}</span>)}</p></article>)}</div></section>
       </section>
 
       <section className="section">
