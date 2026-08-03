@@ -27,4 +27,4 @@
 @media(max-width:900px){.grouped-table td::before{grid-column:1;grid-row:1/-1;font-size:9px}.grouped-table td>*{grid-column:2}.grouped-table td{font-size:11.5px;line-height:1.5}.owner-sticky small{font-size:9.5px}.group-lot-chip b{font-size:10px}.group-lot-chip small{font-size:9px}.group-sources .source-chip{font-size:9px}}
 @media(min-width:951px){.portfolio-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(min-width:721px) and (max-width:950px){.portfolio-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
-.primary-lot i{color:#76c6c2;font-size:8px;font-style:normal;line-height:1.3}
+.primary-lot i{color:#76c6c2;font-size:8px;font-style:normal;line-height:1.3}.contact-links{color:#76c6c2;font-size:10px}.contact-links a{color:inherit;text-decoration:none;border-bottom:1px solid rgba(118,198,194,.35)}.contact-links a:hover{color:var(--ivory);border-color:currentColor}.accessory-owner-list .contact-links{margin-top:10px}
