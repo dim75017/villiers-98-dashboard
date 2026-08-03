@@ -121,6 +121,7 @@ const surfaceEstimateForLot = (lot: (typeof masterLots)[number]) => {
   if (typeof lot.surface === "number") return { value: lot.surface, documented: true };
   if (lot.lot === 84) return { value: 149.55, documented: false };
   if (lot.nature === "Studio") return { value: lot.tantiemes * studioSurfacePerTantieme, documented: false };
+  if (lot.nature === "Chambre") return { value: lot.tantiemes * studioSurfacePerTantieme, documented: false };
   if (lot.nature === "Appartement") return { value: lot.tantiemes * apartmentSurfacePerTantieme, documented: false };
   if (lot.categorie === "Bureaux / commerces") return { value: lot.tantiemes * officeSurfacePerTantieme, documented: false };
   return null;
@@ -242,8 +243,6 @@ export default function Home() {
       </header>
 
       <section className="hero">
-        <span className="eyebrow copper">🗂️ BASE MAÎTRE PAR PROPRIÉTAIRE</span>
-        <div className="hero-heading"><div><h1>👤 Chaque propriétaire. Tous ses lots. Un seul bloc.</h1><p>Les 85 lots sont regroupés sous leurs 44 copropriétaires pour visualiser immédiatement chaque portefeuille.</p></div><span className="proof-badge">👥 44 groupes propriétaires</span></div>
         <div className="metrics">
           <article><small>🧩 Lots à acquérir</small><strong>{prospectLots.length}</strong><p>Hors lots déjà maîtrisés</p></article>
           <article><small>👥 Propriétaires à approcher</small><strong>{ownerGroups.length}</strong><p>Les positions déjà détenues sont retirées</p></article>

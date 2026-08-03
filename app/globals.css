@@ -63,4 +63,5 @@ body{background:radial-gradient(circle at 84% -15%,rgba(126,145,255,.18),transpa
 
 /* Progression : un seul axe visuel, chiffres centrés sur la courbe */
 .ownership-progress{grid-template-columns:1fr;gap:10px}.progress-copy{text-align:center}.progress-copy span,.progress-copy strong{display:block}.progress-visual{padding:16px 0 0}.progress-finance{grid-column:auto;justify-content:center;align-items:center;margin:5px auto 0;text-align:center}.progress-finance small{text-align:center}
+.hero>.metrics{margin-top:0}
 @media(max-width:720px){.progress-finance{justify-items:center;text-align:center}.progress-finance small{max-width:290px}}
