@@ -116,20 +116,7 @@ const surfaceEstimateForLot = (lot: (typeof masterLots)[number]) => {
 const ownedOwnerNames = new Set(["SARL IMMOVILLIERS", "SOMOGUY Dimitri"]);
 const ownedLots = masterLots.filter((lot) => ownedOwnerNames.has(lot.proprietaire ?? ""));
 const prospectLots = masterLots.filter((lot) => !ownedOwnerNames.has(lot.proprietaire ?? ""));
-const ownedTantiemes = ownedLots.reduce((sum, lot) => sum + (lot.tantiemes ?? 0), 0);
-const ownedShare = ownedTantiemes / 10000;
-const prospectDirectCount = prospectLots.filter((lot) => lot.preuveDirecte).length;
-const prospectRecoupedCount = prospectLots.length - prospectDirectCount;
-
-const blocks = [
-  { priority: "P0", name: "Ensemble de bureaux LOFI OFFICE", lots: "Bureaux 44 + 53 · parkings 12, 24, 29–34", levels: "RDC + rez-de-jardin + 8 parkings accessoires", tantiemes: 1243, owner: "Ensemble acquis", note: "Les parkings restent classés comme parkings et sont rattachés au bureau" },
-  { priority: "P1", name: "Plateaux 1er + 2e", lots: "54 + 55", levels: "1er et 2e étages", tantiemes: 1670, owner: "SCI SC 98 BV + SCI SC 98 HV", note: "Deux plateaux de bureaux de 835 tantièmes chacun" },
-  { priority: "P1", name: "Derniers niveaux", lots: "84 + 85", levels: "8e–9e étages", tantiemes: 1596, owner: "ARMENGAUD Marie-Hélène + SOMOGUY Dimitri", note: "Regroupement du sommet de l’immeuble" },
-  { priority: "P1", name: "5e étage", lots: "90 + 91 + 93 + 94", levels: "5e étage", tantiemes: 930, owner: "FELMY-FRAISSE · DUBLANC · VILLIERS PRESTIGE · DE GASTE", note: "Regroupement horizontal à confirmer" },
-  { priority: "P2", name: "Studios 3e étage", lots: "56 à 63", levels: "3e étage", tantiemes: 842, owner: "8 copropriétaires identifiés", note: "Campagne groupée possible" },
-  { priority: "P2", name: "Studios 4e étage", lots: "64 à 71", levels: "4e étage", tantiemes: 842, owner: "8 copropriétaires identifiés", note: "Campagne groupée possible" },
-  { priority: "P3", name: "Parkings", lots: "1 à 34", levels: "3e à 5e sous-sols", tantiemes: 804, owner: "Tous propriétaires identifiés", note: "Lots accessoires · proxy CBRE 50 k€/unité" },
-];
+const ownedShare = ownedLots.reduce((sum, lot) => sum + (lot.tantiemes ?? 0), 0) / 10000;
 
 const euro = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 const number = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 2 });
@@ -241,18 +228,15 @@ export default function Home() {
         <div className="metrics">
           <article><small>🧩 Lots à acquérir</small><strong>{prospectLots.length}</strong><p>Hors lots déjà maîtrisés</p></article>
           <article><small>👥 Propriétaires à approcher</small><strong>{ownerGroups.length}</strong><p>Les positions déjà détenues sont retirées</p></article>
-          <article><small>📜 Pièce directe</small><strong>{prospectDirectCount}</strong><p>Acte, PUV ou transaction identifiée</p></article>
-          <article><small>🔗 Recoupés</small><strong>{prospectRecoupedCount}</strong><p>Feuille détaillée 2024 + liste 2026</p></article>
           <article><small>🧮 Tantièmes contrôlés</small><strong>10 000</strong><p>Rapprochés lot par lot et propriétaire par propriétaire</p></article>
         </div>
-        <div className="ownership-progress"><div className="progress-copy"><span>📈 Progression de l’acquisition</span><strong>{pct(ownedShare)} des tantièmes</strong><p>{number.format(ownedTantiemes)} / 10 000 tantièmes déjà maîtrisés · bureaux IMMOVILLIERS et résidence détenue inclus.</p></div><div className="progress-visual" aria-label={`${pct(ownedShare)} des tantièmes déjà maîtrisés`}><div className="progress-track"><i style={{ width: `${ownedShare * 100}%` }} /><b style={{ left: `${ownedShare * 100}%` }}>{pct(ownedShare)}</b></div><div className="progress-scale"><span>0 %</span><span>25 %</span><span>50 %</span><span>75 %</span><span>100 %</span></div></div></div>
+        <div className="ownership-progress"><div className="progress-copy"><span>📈 Progression de l’acquisition</span><strong>{pct(ownedShare)} des tantièmes</strong></div><div className="progress-visual" aria-label={`${pct(ownedShare)} des tantièmes déjà maîtrisés`}><div className="progress-track"><i style={{ width: `${ownedShare * 100}%` }} /><b style={{ left: `${ownedShare * 100}%` }}>{pct(ownedShare)}</b></div><div className="progress-scale"><span>0 %</span><span>25 %</span><span>50 %</span><span>75 %</span><span>100 %</span></div></div></div>
       </section>
 
       <section className="section lots-section">
-        <div className="section-title"><div><span className="eyebrow copper">📊 PORTEFEUILLES À ACQUÉRIR</span><h2>🏠 Habitations et 💼 bureaux d’abord</h2><p>Les positions déjà détenues sont sorties de la liste. Les parkings et caves restent des annexes.</p></div><strong>👥 {ownerGroups.length} propriétaires · 🧩 {prospectLots.length} lots</strong></div>
+        <div className="section-title"><div><span className="eyebrow copper">📊 PORTEFEUILLES À ACQUÉRIR</span><h2>Propriétaires à contacter</h2></div><strong>👥 {ownerGroups.length} propriétaires · 🧩 {prospectLots.length} lots</strong></div>
 
         <div className="portfolio-sort" aria-label="Tri des portefeuilles"><span>↕️ Trier par</span>{sortOptions.map((option) => <button key={option.value} type="button" className={sortKey === option.value ? "active" : ""} onClick={() => changeSort(option.value)}>{option.label} {sortKey === option.value && <b>{sortDirection === "asc" ? "↑" : "↓"}</b>}</button>)}</div>
-        <p className="estimate-note">📐 Surface avec « ≈ » : estimation calibrée par tantièmes sur des lots comparables. 💶 Valeur : estimation actuelle de la base ; l’étalon bureaux reprend CBRE au 30/07/2026. Parkings et caves sont valorisés mais sans surface reconstituée.</p>
 
         <div className="portfolio-grid">
           {ownerGroups.filter((group) => group.primaryLotCount > 0).map((group) => <article key={group.ownerName} className="portfolio-card">
@@ -265,15 +249,6 @@ export default function Home() {
         <section className="accessory-section"><div><span className="eyebrow">🅿️ 📦 ANNEXES SEULES</span><h3>Parkings et caves sans logement ni bureau associé</h3><p>Ils restent recensés, sans prendre la place des portefeuilles principaux.</p></div><div className="accessory-owner-list">{ownerGroups.filter((group) => group.primaryLotCount === 0).map((group) => <article key={group.ownerName}><div><strong>👤 {group.ownerName}</strong><small>{text(group.type)} · {number.format(group.ownerWeight)} tantièmes</small></div><p>{group.accessoryCategories.map((category) => { const categoryValue = category.lots.reduce((sum, lot) => sum + (lot.valeurEstimee ?? 0), 0); return <span key={category.name}>{categoryEmoji[category.name]} {category.lots.length} {categoryShortName[category.name].toLocaleLowerCase("fr")} : {category.lots.map((lot) => lot.lot).join(", ")}{categoryValue ? ` · ≈ ${money(categoryValue)}` : ""}</span>; })}</p></article>)}</div></section>
       </section>
 
-      <section className="section">
-        <div className="section-title"><div><span className="eyebrow copper">🧱 ASSEMBLAGE</span><h2>🎯 Blocs stratégiques désormais attribués</h2><p>💡 Même étage ou même package ne signifie pas automatiquement contiguïté physique.</p></div></div>
-        <div className="blocks-grid">{blocks.map((block) => <article key={block.name} className="block-card"><div><span className={`priority ${block.priority.toLowerCase()}`}>🎯 {block.priority}</span><span className="block-share">⚖️ {number.format(block.tantiemes)} tantièmes</span></div><h3>🧩 {block.name}</h3><p>🛗 {block.levels}</p><dl><div><dt>🔢 Lots</dt><dd>{block.lots}</dd></div><div><dt>👤 Propriétaire(s)</dt><dd>{block.owner}</dd></div></dl><footer>💡 {block.note}</footer></article>)}</div>
-      </section>
-
-      <section className="section final-section">
-        <article className="spf-panel"><div><span className="eyebrow copper">⚖️ CONSOLIDATION JURIDIQUE</span><h2>📜 Transformer les recoupements en preuves récentes</h2><p>Les 85 associations sont désormais lisibles. Pour les 67 lignes sans pièce directe récente, le SPF reste le contrôle définitif avant prise de contact ou acquisition.</p></div><ol><li><b>1</b>🎯 Prioriser les P0/P1</li><li><b>2</b>📨 Commander les fiches SPF</li><li><b>3</b>📎 Joindre l’acte à chaque ligne</li></ol><a href="https://www.impots.gouv.fr/formulaire/3233-sd/demande-de-renseignements-pour-la-periode-compter-du-1er-janvier-1956" target="_blank" rel="noreferrer">🧾 Formulaire officiel DGFIP</a></article>
-        <p className="footnote"><strong>Rapprochement principal :</strong> feuille de présence détaillée de l’AG du 7 octobre 2024, recoupée avec la liste des 44 comptes copropriétaires et le PV 2026. Les mutations documentées par acte, PUV ou DVF sont signalées « Pièce directe ». Les autres restent signalées « Recoupé » jusqu’au contrôle SPF.</p>
-      </section>
     </main>
   );
 }
