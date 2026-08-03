@@ -59,6 +59,10 @@ owners.forEach((owner) => ownerLots[owner.proprietaire]?.forEach((lot) => ownerB
 const directLots = new Set(lots.filter((lot) => Boolean(lot.proprietaire)).map((lot) => lot.lot));
 const officePackageLots = new Set([12, 24, 29, 30, 31, 32, 33, 34, 44, 53]);
 const obsoleteOwnershipNote = /Rattachement au propriétaire non prouvé par les pièces disponibles: laisser vide jusqu'au retour SPF\.\s*/g;
+const valuationOverrides: Record<number, { value: number; note: string }> = {
+  80: { value: 1600000, note: "Vue Tour Eiffel · prime intégrée (hypothèse Dimitri)" },
+  84: { value: 3000000, note: "Comparable direct lot 85 · vue Tour Eiffel (information Dimitri)" },
+};
 
 const categoryForNature = (nature: string | null) => {
   if (nature === "Parking") return { categorie: "Parkings", categorieSlug: "parking", categorieEmoji: "🅿️" };
@@ -72,6 +76,7 @@ const masterLots = lots.map((lot) => {
   const direct = directLots.has(lot.lot);
   const category = categoryForNature(lot.nature);
   const isOfficePackage = officePackageLots.has(lot.lot);
+  const valuationOverride = valuationOverrides[lot.lot];
   const cleanedComment = lot.commentaires?.replace(obsoleteOwnershipNote, "").trim() || null;
   const packageComment = isOfficePackage
     ? lot.nature === "Parking" ? "Parking rattaché à l’ensemble de bureaux acquis." : "Lot principal de l’ensemble de bureaux acquis."
@@ -79,6 +84,8 @@ const masterLots = lots.map((lot) => {
   return {
     ...lot,
     ...category,
+    valeurEstimee: valuationOverride?.value ?? lot.valeurEstimee,
+    valuationNote: valuationOverride?.note ?? null,
     proprietaire: owner?.proprietaire ?? null,
     type: owner?.type ?? lot.type,
     adresse: lot.adresse ?? owner?.adresse ?? null,
@@ -94,7 +101,7 @@ const masterLots = lots.map((lot) => {
     preuve: direct ? "Pièce directe" : "Recoupé AG 2024/2026",
     preuveDirecte: direct,
     commentaires: [packageComment, cleanedComment].filter(Boolean).join(" ") || null,
-    sourcesFusion: [lot.sources, owner?.sources, "Feuille de présence AG 07/10/2024", isOfficePackage ? "Information fournie par Dimitri" : null].filter(Boolean).join(" · "),
+    sourcesFusion: [lot.sources, owner?.sources, "Feuille de présence AG 07/10/2024", isOfficePackage || valuationOverride ? "Information fournie par Dimitri" : null].filter(Boolean).join(" · "),
   };
 });
 
@@ -107,6 +114,7 @@ const apartmentSurfacePerTantieme = calibratedSurface((lot) => lot.nature === "A
 const officeSurfacePerTantieme = 313 / (471 + 568);
 const surfaceEstimateForLot = (lot: (typeof masterLots)[number]) => {
   if (typeof lot.surface === "number") return { value: lot.surface, documented: true };
+  if (lot.lot === 84) return { value: 149.55, documented: false };
   if (lot.nature === "Studio") return { value: lot.tantiemes * studioSurfacePerTantieme, documented: false };
   if (lot.nature === "Appartement") return { value: lot.tantiemes * apartmentSurfacePerTantieme, documented: false };
   if (lot.categorie === "Bureaux / commerces") return { value: lot.tantiemes * officeSurfacePerTantieme, documented: false };
@@ -241,7 +249,7 @@ export default function Home() {
         <div className="portfolio-grid">
           {ownerGroups.filter((group) => group.primaryLotCount > 0).map((group) => <article key={group.ownerName} className="portfolio-card">
             <header><div><span className="portfolio-type">{text(group.type)}</span><h3>👤 {group.ownerName}</h3></div><div className="portfolio-weight"><strong>{number.format(group.ownerWeight)}</strong><span>tantièmes · {pct(group.ownerShare)}</span></div></header>
-            <div className="primary-categories">{group.primaryCategories.map((category) => <section key={category.name} className={`primary-category ${category.name === "Habitations" ? "habitation" : "bureau"}`}><h4>{categoryEmoji[category.name]} {categoryShortName[category.name]}</h4><div>{category.lots.map((lot) => { const surfaceDetail = surfaceEstimateForLot(lot); return <span key={lot.lot} className="primary-lot"><b>Lot {lot.lot}</b><small>{text(lot.etage)}{surfaceDetail ? ` · ${surfaceDetail.documented ? "" : "≈ "}${number.format(surfaceDetail.value)} m²` : ""}</small>{lot.valeurEstimee && <em>≈ {money(lot.valeurEstimee)}</em>}</span>; })}</div></section>)}</div>
+            <div className="primary-categories">{group.primaryCategories.map((category) => <section key={category.name} className={`primary-category ${category.name === "Habitations" ? "habitation" : "bureau"}`}><h4>{categoryEmoji[category.name]} {categoryShortName[category.name]}</h4><div>{category.lots.map((lot) => { const surfaceDetail = surfaceEstimateForLot(lot); return <span key={lot.lot} className="primary-lot"><b>Lot {lot.lot}</b><small>{text(lot.etage)}{surfaceDetail ? ` · ${surfaceDetail.documented ? "" : "≈ "}${number.format(surfaceDetail.value)} m²` : ""}</small>{lot.valeurEstimee && <em>≈ {money(lot.valeurEstimee)}</em>}{lot.valuationNote && <i>{lot.valuationNote}</i>}</span>; })}</div></section>)}</div>
             {group.accessoryLots.length > 0 && <div className="accessory-line">{group.accessoryCategories.map((category) => { const categoryValue = category.lots.reduce((sum, lot) => sum + (lot.valeurEstimee ?? 0), 0); return <span key={category.name}>{categoryEmoji[category.name]} {category.lots.length} {categoryShortName[category.name].toLocaleLowerCase("fr")} · lots {category.lots.map((lot) => lot.lot).join(", ")}{categoryValue ? ` · ≈ ${money(categoryValue)}` : ""}</span>; })}</div>}
             <footer><span>{group.estimatedPrimarySurface ? `📐 ${group.estimatedPrimarySurfaceCount ? "≈ " : ""}${number.format(group.estimatedPrimarySurface)} m²${group.documentedPrimarySurfaceCount ? ` · ${group.documentedPrimarySurfaceCount} mesuré${group.documentedPrimarySurfaceCount > 1 ? "s" : ""}` : ""}` : "📐 Surface non reconstituée"}</span><span>{group.value ? `💶 ≈ ${money(group.value)}` : ""}</span><details><summary>Infos propriétaire</summary><div className="portfolio-details"><p><b>📬 Correspondance</b>{group.address ? text(group.address) : "Non renseignée"}{group.phone && <><br />{group.phone}</>}{group.email && <><br />{group.email}</>}</p><p><b>📅 Acquisition(s)</b>{group.acquisitions.length ? group.acquisitions.map((item, index) => <span key={`${item.date}-${item.price}-${index}`}>{text(item.date)}{item.price ? ` · ${money(item.price)}` : ""}</span>) : "Non renseignée"}</p><p><b>🔗 Sources</b>{group.sources}</p></div></details></footer>
           </article>)}</div>
