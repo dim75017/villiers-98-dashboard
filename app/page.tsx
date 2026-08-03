@@ -69,6 +69,12 @@ const valuationOverrides: Record<number, { value: number; note: string }> = {
   84: { value: 3000000, note: "Vue Tour Eiffel · prime intégrée" },
 };
 
+const verifiedProfessionalContacts: Record<string, { phone: string; email: string; label: string; source: string }> = {
+  "SCI SC 98 BV": { phone: "01 43 43 90 00", email: "bm12@berdugometoudi.fr", label: "Cabinet professionnel du gérant", source: "Berdugo Metoudi · contact public" },
+  "SCI SC 98 HV": { phone: "01 43 43 90 00", email: "bm12@berdugometoudi.fr", label: "Cabinet professionnel du gérant", source: "Berdugo Metoudi · contact public" },
+  "SCI 13ÈME SOUS SOL": { phone: "01 53 17 97 13", email: "c.poujeol@treizecenttreize.fr", label: "Contact professionnel du gérant", source: "Treize Cent Treize · mentions légales publiques" },
+};
+
 const categoryForNature = (nature: string | null) => {
   if (nature === "Parking") return { categorie: "Parkings", categorieSlug: "parking", categorieEmoji: "🅿️" };
   if (nature === "Cave") return { categorie: "Caves", categorieSlug: "cave", categorieEmoji: "📦" };
@@ -78,6 +84,7 @@ const categoryForNature = (nature: string | null) => {
 
 const masterLots = lots.map((lot) => {
   const owner = ownerByLot.get(lot.lot);
+  const verifiedContact = owner ? verifiedProfessionalContacts[owner.proprietaire] : null;
   const direct = directLots.has(lot.lot);
   const category = categoryForNature(lot.nature);
   const isOfficePackage = officePackageLots.has(lot.lot);
@@ -94,8 +101,9 @@ const masterLots = lots.map((lot) => {
     proprietaire: owner?.proprietaire ?? null,
     type: owner?.type ?? lot.type,
     adresse: lot.adresse ?? owner?.adresse ?? null,
-    telephone: lot.telephone ?? owner?.telephone ?? null,
-    email: lot.email ?? owner?.email ?? null,
+    telephone: verifiedContact?.phone ?? lot.telephone ?? owner?.telephone ?? null,
+    email: verifiedContact?.email ?? lot.email ?? owner?.email ?? null,
+    contactLabel: verifiedContact?.label ?? null,
     prioriteContact: owner?.priorite ?? null,
     partProprietaire: owner?.part ?? null,
     tantiemesProprietaire: owner?.tantiemes ?? null,
@@ -106,7 +114,7 @@ const masterLots = lots.map((lot) => {
     preuve: direct ? "Pièce directe" : "Recoupé AG 2024/2026",
     preuveDirecte: direct,
     commentaires: [packageComment, cleanedComment].filter(Boolean).join(" ") || null,
-    sourcesFusion: [lot.sources, owner?.sources, "Feuille de présence AG 07/10/2024", isOfficePackage || valuationOverride ? "Information fournie par Dimitri" : null].filter(Boolean).join(" · "),
+    sourcesFusion: [lot.sources, owner?.sources, "Feuille de présence AG 07/10/2024", verifiedContact?.source, isOfficePackage || valuationOverride ? "Information fournie par Dimitri" : null].filter(Boolean).join(" · "),
   };
 });
 
@@ -187,6 +195,7 @@ export default function Home() {
         address: first.adresse,
         phone: first.telephone,
         email: first.email,
+        contactLabel: first.contactLabel,
         ownerWeight: legalOwners.length > 1 ? sortedLots.reduce((sum, lot) => sum + lot.tantiemes, 0) : first.tantiemesProprietaire ?? 0,
         ownerShare: legalOwners.length > 1 ? sortedLots.reduce((sum, lot) => sum + lot.tantiemes, 0) / 10000 : first.partProprietaire,
         totalOwnerLots: legalOwners.length > 1 ? sortedLots.length : first.lotsDuProprietaire ?? sortedLots.length,
@@ -262,10 +271,10 @@ export default function Home() {
             <header><div><span className="portfolio-type">{text(group.type)}</span><h3>👤 {group.ownerName}</h3>{group.commonControlNote && <small className="portfolio-subtitle">⚖️ {group.commonControlNote}</small>}</div><div className="portfolio-weight"><strong>{number.format(group.ownerWeight)}</strong><span>tantièmes · {pct(group.ownerShare)}</span></div></header>
             <div className="primary-categories">{group.primaryCategories.map((category) => <section key={category.name} className={`primary-category ${category.name === "Habitations" ? "habitation" : "bureau"}`}><h4>{categoryEmoji[category.name]} {categoryShortName[category.name]}</h4><div>{category.lots.map((lot) => { const surfaceDetail = surfaceEstimateForLot(lot); const acquisition = acquisitionLabel(lot.dateAcquisition); return <span key={lot.lot} className="primary-lot"><b>Lot {lot.lot}</b><small>{text(lot.etage)}{surfaceDetail ? ` · ${surfaceDetail.documented ? "" : "≈ "}${number.format(surfaceDetail.value)} m²` : ""}</small>{acquisition && <i>📅 {acquisition}</i>}{lot.valeurEstimee && <em>≈ {money(lot.valeurEstimee)}</em>}{lot.valuationNote && <i>{lot.valuationNote}</i>}</span>; })}</div></section>)}</div>
             {group.accessoryLots.length > 0 && <div className="accessory-line">{group.accessoryCategories.map((category) => { const categoryValue = category.lots.reduce((sum, lot) => sum + (lot.valeurEstimee ?? 0), 0); const acquisitions = category.lots.map((lot) => acquisitionLabel(lot.dateAcquisition) ? `L${lot.lot} · ${acquisitionLabel(lot.dateAcquisition)}` : null).filter(Boolean); return <span key={category.name}>{categoryEmoji[category.name]} {category.lots.length} {categoryShortName[category.name].toLocaleLowerCase("fr")} · lots {category.lots.map((lot) => lot.lot).join(", ")}{categoryValue ? ` · ≈ ${money(categoryValue)}` : ""}{acquisitions.length ? ` · 📅 ${acquisitions.join(" · ")}` : ""}</span>; })}</div>}
-            <footer><span>{group.estimatedPrimarySurface ? `📐 ${group.estimatedPrimarySurfaceCount ? "≈ " : ""}${number.format(group.estimatedPrimarySurface)} m²${group.documentedPrimarySurfaceCount ? ` · ${group.documentedPrimarySurfaceCount} mesuré${group.documentedPrimarySurfaceCount > 1 ? "s" : ""}` : ""}` : "📐 Surface non reconstituée"}</span><span>{group.value ? `💶 ≈ ${money(group.value)}` : ""}</span>{(group.phone || group.email) && <span className="contact-links">📞 {group.phone && <a href={`tel:${group.phone.replace(/[^+\\d]/g, "")}`}>{group.phone}</a>}{group.phone && group.email && " · "}{group.email && <a href={`mailto:${group.email}`}>{group.email}</a>}</span>}</footer>
+            <footer><span>{group.estimatedPrimarySurface ? `📐 ${group.estimatedPrimarySurfaceCount ? "≈ " : ""}${number.format(group.estimatedPrimarySurface)} m²${group.documentedPrimarySurfaceCount ? ` · ${group.documentedPrimarySurfaceCount} mesuré${group.documentedPrimarySurfaceCount > 1 ? "s" : ""}` : ""}` : "📐 Surface non reconstituée"}</span><span>{group.value ? `💶 ≈ ${money(group.value)}` : ""}</span>{(group.phone || group.email) && <span className="contact-links"><b>📞 {group.contactLabel ?? "Contact professionnel"}</b>{group.phone && <a href={`tel:${group.phone.replace(/[^\\d+]/g, "")}`}>{group.phone}</a>}{group.phone && group.email && " · "}{group.email && <a href={`mailto:${group.email}`}>{group.email}</a>}</span>}</footer>
           </article>)}</div>
 
-        <section className="accessory-section"><div><span className="eyebrow">🅿️ 📦 ANNEXES SEULES</span><h3>Parkings et caves sans logement ni bureau associé</h3><p>Ils restent recensés, sans prendre la place des portefeuilles principaux.</p></div><div className="accessory-owner-list">{ownerGroups.filter((group) => group.primaryLotCount === 0).map((group) => <article key={group.ownerName}><div><strong>👤 {group.ownerName}</strong><small>{text(group.type)} · {number.format(group.ownerWeight)} tantièmes</small></div><p>{group.accessoryCategories.map((category) => { const categoryValue = category.lots.reduce((sum, lot) => sum + (lot.valeurEstimee ?? 0), 0); const acquisitions = category.lots.map((lot) => acquisitionLabel(lot.dateAcquisition) ? `L${lot.lot} · ${acquisitionLabel(lot.dateAcquisition)}` : null).filter(Boolean); return <span key={category.name}>{categoryEmoji[category.name]} {category.lots.length} {categoryShortName[category.name].toLocaleLowerCase("fr")} : {category.lots.map((lot) => lot.lot).join(", ")}{categoryValue ? ` · ≈ ${money(categoryValue)}` : ""}{acquisitions.length ? ` · 📅 ${acquisitions.join(" · ")}` : ""}</span>; })}</p>{(group.phone || group.email) && <div className="contact-links">📞 {group.phone && <a href={`tel:${group.phone.replace(/[^+\\d]/g, "")}`}>{group.phone}</a>}{group.phone && group.email && " · "}{group.email && <a href={`mailto:${group.email}`}>{group.email}</a>}</div>}</article>)}</div></section>
+        <section className="accessory-section"><div><span className="eyebrow">🅿️ 📦 ANNEXES SEULES</span><h3>Parkings et caves sans logement ni bureau associé</h3><p>Ils restent recensés, sans prendre la place des portefeuilles principaux.</p></div><div className="accessory-owner-list">{ownerGroups.filter((group) => group.primaryLotCount === 0).map((group) => <article key={group.ownerName}><div><strong>👤 {group.ownerName}</strong><small>{text(group.type)} · {number.format(group.ownerWeight)} tantièmes</small></div><p>{group.accessoryCategories.map((category) => { const categoryValue = category.lots.reduce((sum, lot) => sum + (lot.valeurEstimee ?? 0), 0); const acquisitions = category.lots.map((lot) => acquisitionLabel(lot.dateAcquisition) ? `L${lot.lot} · ${acquisitionLabel(lot.dateAcquisition)}` : null).filter(Boolean); return <span key={category.name}>{categoryEmoji[category.name]} {category.lots.length} {categoryShortName[category.name].toLocaleLowerCase("fr")} : {category.lots.map((lot) => lot.lot).join(", ")}{categoryValue ? ` · ≈ ${money(categoryValue)}` : ""}{acquisitions.length ? ` · 📅 ${acquisitions.join(" · ")}` : ""}</span>; })}</p>{(group.phone || group.email) && <div className="contact-links"><b>📞 {group.contactLabel ?? "Contact professionnel"}</b>{group.phone && <a href={`tel:${group.phone.replace(/[^\\d+]/g, "")}`}>{group.phone}</a>}{group.phone && group.email && " · "}{group.email && <a href={`mailto:${group.email}`}>{group.email}</a>}</div>}</article>)}</div></section>
       </section>
 
     </main>
