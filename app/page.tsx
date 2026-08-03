@@ -61,7 +61,7 @@ const officePackageLots = new Set([12, 24, 29, 30, 31, 32, 33, 34, 44, 53]);
 const obsoleteOwnershipNote = /Rattachement au propriétaire non prouvé par les pièces disponibles: laisser vide jusqu'au retour SPF\.\s*/g;
 const valuationOverrides: Record<number, { value: number; note: string }> = {
   80: { value: 1600000, note: "Vue Tour Eiffel · prime intégrée (hypothèse Dimitri)" },
-  84: { value: 3000000, note: "Comparable direct lot 85 · vue Tour Eiffel (information Dimitri)" },
+  84: { value: 3000000, note: "Vue Tour Eiffel · prime intégrée" },
 };
 
 const categoryForNature = (nature: string | null) => {
