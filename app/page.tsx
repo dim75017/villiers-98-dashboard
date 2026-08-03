@@ -53,6 +53,11 @@ const ownerLots: Record<string, number[]> = {
   "PRUAL Françoise": [6],
 };
 
+const commonControlPortfolios: Record<string, { name: string; type: string; note: string }> = {
+  "SCI SC 98 BV": { name: "SCI 98BV + 98HV", type: "2 SCI · même gérant", note: "2 SCI distinctes · gérant commun : Roger Berdugo" },
+  "SCI SC 98 HV": { name: "SCI 98BV + 98HV", type: "2 SCI · même gérant", note: "2 SCI distinctes · gérant commun : Roger Berdugo" },
+};
+
 const ownerByLot = new Map<number, Owner>();
 owners.forEach((owner) => ownerLots[owner.proprietaire]?.forEach((lot) => ownerByLot.set(lot, owner)));
 
@@ -158,14 +163,17 @@ export default function Home() {
     const grouped = new Map<string, MasterLot[]>();
     prospectLots.forEach((lot) => {
       const ownerName = lot.proprietaire ?? "À identifier";
-      const current = grouped.get(ownerName) ?? [];
+      const groupName = commonControlPortfolios[ownerName]?.name ?? ownerName;
+      const current = grouped.get(groupName) ?? [];
       current.push(lot);
-      grouped.set(ownerName, current);
+      grouped.set(groupName, current);
     });
 
     const rows = Array.from(grouped.entries()).map(([ownerName, filteredLots]) => {
       const sortedLots = [...filteredLots].sort((a, b) => a.lot - b.lot);
       const first = sortedLots[0];
+      const commonControl = first.proprietaire ? commonControlPortfolios[first.proprietaire] : null;
+      const legalOwners = Array.from(new Set(sortedLots.map((lot) => lot.proprietaire).filter((owner): owner is string => Boolean(owner))));
       const acquisitions = Array.from(new Map(sortedLots
         .filter((lot) => lot.dateAcquisition || lot.prixAcquisition)
         .map((lot) => [`${lot.dateAcquisition ?? ""}|${lot.prixAcquisition ?? ""}`, { date: lot.dateAcquisition, price: lot.prixAcquisition }])).values());
@@ -174,13 +182,14 @@ export default function Home() {
       const primarySurfaceDetails = primaryLots.map((lot) => surfaceEstimateForLot(lot)).filter((item): item is NonNullable<typeof item> => item !== null);
       return {
         ownerName,
-        type: first.type,
+        type: commonControl?.type ?? first.type,
+        commonControlNote: commonControl?.note ?? null,
         address: first.adresse,
         phone: first.telephone,
         email: first.email,
-        ownerWeight: first.tantiemesProprietaire ?? 0,
-        ownerShare: first.partProprietaire,
-        totalOwnerLots: first.lotsDuProprietaire ?? sortedLots.length,
+        ownerWeight: legalOwners.length > 1 ? sortedLots.reduce((sum, lot) => sum + lot.tantiemes, 0) : first.tantiemesProprietaire ?? 0,
+        ownerShare: legalOwners.length > 1 ? sortedLots.reduce((sum, lot) => sum + lot.tantiemes, 0) / 10000 : first.partProprietaire,
+        totalOwnerLots: legalOwners.length > 1 ? sortedLots.length : first.lotsDuProprietaire ?? sortedLots.length,
         lots: sortedLots,
         primaryLots,
         accessoryLots,
@@ -250,7 +259,7 @@ export default function Home() {
 
         <div className="portfolio-grid">
           {ownerGroups.filter((group) => group.primaryLotCount > 0).map((group) => <article key={group.ownerName} className="portfolio-card">
-            <header><div><span className="portfolio-type">{text(group.type)}</span><h3>👤 {group.ownerName}</h3></div><div className="portfolio-weight"><strong>{number.format(group.ownerWeight)}</strong><span>tantièmes · {pct(group.ownerShare)}</span></div></header>
+            <header><div><span className="portfolio-type">{text(group.type)}</span><h3>👤 {group.ownerName}</h3>{group.commonControlNote && <small className="portfolio-subtitle">⚖️ {group.commonControlNote}</small>}</div><div className="portfolio-weight"><strong>{number.format(group.ownerWeight)}</strong><span>tantièmes · {pct(group.ownerShare)}</span></div></header>
             <div className="primary-categories">{group.primaryCategories.map((category) => <section key={category.name} className={`primary-category ${category.name === "Habitations" ? "habitation" : "bureau"}`}><h4>{categoryEmoji[category.name]} {categoryShortName[category.name]}</h4><div>{category.lots.map((lot) => { const surfaceDetail = surfaceEstimateForLot(lot); const acquisition = acquisitionLabel(lot.dateAcquisition); return <span key={lot.lot} className="primary-lot"><b>Lot {lot.lot}</b><small>{text(lot.etage)}{surfaceDetail ? ` · ${surfaceDetail.documented ? "" : "≈ "}${number.format(surfaceDetail.value)} m²` : ""}</small>{acquisition && <i>📅 {acquisition}</i>}{lot.valeurEstimee && <em>≈ {money(lot.valeurEstimee)}</em>}{lot.valuationNote && <i>{lot.valuationNote}</i>}</span>; })}</div></section>)}</div>
             {group.accessoryLots.length > 0 && <div className="accessory-line">{group.accessoryCategories.map((category) => { const categoryValue = category.lots.reduce((sum, lot) => sum + (lot.valeurEstimee ?? 0), 0); const acquisitions = category.lots.map((lot) => acquisitionLabel(lot.dateAcquisition) ? `L${lot.lot} · ${acquisitionLabel(lot.dateAcquisition)}` : null).filter(Boolean); return <span key={category.name}>{categoryEmoji[category.name]} {category.lots.length} {categoryShortName[category.name].toLocaleLowerCase("fr")} · lots {category.lots.map((lot) => lot.lot).join(", ")}{categoryValue ? ` · ≈ ${money(categoryValue)}` : ""}{acquisitions.length ? ` · 📅 ${acquisitions.join(" · ")}` : ""}</span>; })}</div>}
             <footer><span>{group.estimatedPrimarySurface ? `📐 ${group.estimatedPrimarySurfaceCount ? "≈ " : ""}${number.format(group.estimatedPrimarySurface)} m²${group.documentedPrimarySurfaceCount ? ` · ${group.documentedPrimarySurfaceCount} mesuré${group.documentedPrimarySurfaceCount > 1 ? "s" : ""}` : ""}` : "📐 Surface non reconstituée"}</span><span>{group.value ? `💶 ≈ ${money(group.value)}` : ""}</span>{(group.phone || group.email) && <span className="contact-links">📞 {group.phone && <a href={`tel:${group.phone.replace(/[^+\\d]/g, "")}`}>{group.phone}</a>}{group.phone && group.email && " · "}{group.email && <a href={`mailto:${group.email}`}>{group.email}</a>}</span>}</footer>
