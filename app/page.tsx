@@ -98,6 +98,14 @@ const masterLots = lots.map((lot) => {
   };
 });
 
+const ownedOwnerNames = new Set(["SARL IMMOVILLIERS", "SOMOGUY Dimitri"]);
+const ownedLots = masterLots.filter((lot) => ownedOwnerNames.has(lot.proprietaire ?? ""));
+const prospectLots = masterLots.filter((lot) => !ownedOwnerNames.has(lot.proprietaire ?? ""));
+const ownedTantiemes = ownedLots.reduce((sum, lot) => sum + (lot.tantiemes ?? 0), 0);
+const ownedShare = ownedTantiemes / 10000;
+const prospectDirectCount = prospectLots.filter((lot) => lot.preuveDirecte).length;
+const prospectRecoupedCount = prospectLots.length - prospectDirectCount;
+
 const blocks = [
   { priority: "P0", name: "Ensemble de bureaux LOFI OFFICE", lots: "Bureaux 44 + 53 · parkings 12, 24, 29–34", levels: "RDC + rez-de-jardin + 8 parkings accessoires", tantiemes: 1243, owner: "Ensemble acquis", note: "Les parkings restent classés comme parkings et sont rattachés au bureau" },
   { priority: "P1", name: "Plateaux 1er + 2e", lots: "54 + 55", levels: "1er et 2e étages", tantiemes: 1670, owner: "SCI SC 98 BV + SCI SC 98 HV", note: "Deux plateaux de bureaux de 835 tantièmes chacun" },
@@ -136,7 +144,7 @@ export default function Home() {
 
   const ownerGroups = useMemo(() => {
     const grouped = new Map<string, MasterLot[]>();
-    masterLots.forEach((lot) => {
+    prospectLots.forEach((lot) => {
       const ownerName = lot.proprietaire ?? "À identifier";
       const current = grouped.get(ownerName) ?? [];
       current.push(lot);
@@ -214,16 +222,17 @@ export default function Home() {
         <span className="eyebrow copper">🗂️ BASE MAÎTRE PAR PROPRIÉTAIRE</span>
         <div className="hero-heading"><div><h1>👤 Chaque propriétaire. Tous ses lots. Un seul bloc.</h1><p>Les 85 lots sont regroupés sous leurs 44 copropriétaires pour visualiser immédiatement chaque portefeuille.</p></div><span className="proof-badge">👥 44 groupes propriétaires</span></div>
         <div className="metrics">
-          <article><small>🧩 Lots associés</small><strong>85</strong><p>100 % de l’immeuble relié</p></article>
-          <article><small>👥 Copropriétaires</small><strong>44</strong><p>Liste actuelle issue de l’AG 2026</p></article>
-          <article><small>📜 Pièce directe</small><strong>18</strong><p>Acte, PUV ou transaction identifiée</p></article>
-          <article><small>🔗 Recoupés</small><strong>67</strong><p>Feuille détaillée 2024 + liste 2026</p></article>
+          <article><small>🧩 Lots à acquérir</small><strong>{prospectLots.length}</strong><p>Hors lots déjà maîtrisés</p></article>
+          <article><small>👥 Propriétaires à approcher</small><strong>{ownerGroups.length}</strong><p>Les positions déjà détenues sont retirées</p></article>
+          <article><small>📜 Pièce directe</small><strong>{prospectDirectCount}</strong><p>Acte, PUV ou transaction identifiée</p></article>
+          <article><small>🔗 Recoupés</small><strong>{prospectRecoupedCount}</strong><p>Feuille détaillée 2024 + liste 2026</p></article>
           <article><small>🧮 Tantièmes contrôlés</small><strong>10 000</strong><p>Rapprochés lot par lot et propriétaire par propriétaire</p></article>
         </div>
+        <div className="ownership-progress"><div className="progress-copy"><span>📈 Progression de l’acquisition</span><strong>{pct(ownedShare)} des tantièmes</strong><p>{number.format(ownedTantiemes)} / 10 000 tantièmes déjà maîtrisés · bureaux IMMOVILLIERS et résidence détenue inclus.</p></div><div className="progress-visual" aria-label={`${pct(ownedShare)} des tantièmes déjà maîtrisés`}><div className="progress-track"><i style={{ width: `${ownedShare * 100}%` }} /><b style={{ left: `${ownedShare * 100}%` }}>{pct(ownedShare)}</b></div><div className="progress-scale"><span>0 %</span><span>25 %</span><span>50 %</span><span>75 %</span><span>100 %</span></div></div></div>
       </section>
 
       <section className="section lots-section">
-        <div className="section-title"><div><span className="eyebrow copper">📊 PORTEFEUILLES PRIORITAIRES</span><h2>🏠 Habitations et 💼 bureaux d’abord</h2><p>Les parkings et caves restent associés à leur propriétaire, mais passent au second plan comme annexes.</p></div><strong>👥 {ownerGroups.length} propriétaires · 🧩 85 lots</strong></div>
+        <div className="section-title"><div><span className="eyebrow copper">📊 PORTEFEUILLES À ACQUÉRIR</span><h2>🏠 Habitations et 💼 bureaux d’abord</h2><p>Les positions déjà détenues sont sorties de la liste. Les parkings et caves restent des annexes.</p></div><strong>👥 {ownerGroups.length} propriétaires · 🧩 {prospectLots.length} lots</strong></div>
 
         <div className="portfolio-sort" aria-label="Tri des portefeuilles"><span>↕️ Trier par</span>{sortOptions.map((option) => <button key={option.value} type="button" className={sortKey === option.value ? "active" : ""} onClick={() => changeSort(option.value)}>{option.label} {sortKey === option.value && <b>{sortDirection === "asc" ? "↑" : "↓"}</b>}</button>)}</div>
 
