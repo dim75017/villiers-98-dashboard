@@ -65,3 +65,6 @@ body{background:radial-gradient(circle at 84% -15%,rgba(126,145,255,.18),transpa
 .ownership-progress{grid-template-columns:1fr;gap:10px}.progress-copy{text-align:center}.progress-copy span,.progress-copy strong{display:block}.progress-visual{padding:16px 0 0}.progress-finance{grid-column:auto;justify-content:center;align-items:center;margin:5px auto 0;text-align:center}.progress-finance small{text-align:center}
 .hero>.metrics{margin-top:0}
 @media(max-width:720px){.progress-finance{justify-items:center;text-align:center}.progress-finance small{max-width:290px}}
+
+/* Les trois chiffres clés partagent le même traitement, avec des bleus distincts. */
+.metrics article:first-child{border-color:rgba(157,225,255,.35);background:linear-gradient(145deg,rgba(157,225,255,.12),rgba(16,20,29,.9))}.metrics article:nth-child(2){border-color:rgba(126,145,255,.42);background:linear-gradient(145deg,rgba(126,145,255,.15),rgba(16,20,29,.9))}.metrics article:nth-child(3){border-color:rgba(103,174,255,.38);background:linear-gradient(145deg,rgba(103,174,255,.12),rgba(16,20,29,.9))}.metrics article:nth-child(2) strong{color:#d7ddff}.metrics article:nth-child(3) strong{color:#c9e9ff}

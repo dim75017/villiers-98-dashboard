@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import lots from "./lots.json";
 import owners from "./owners.json";
 
@@ -143,25 +143,12 @@ const dateLabel = new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "sho
 const acquisitionLabel = (value: string | null | undefined) => value ? `Acq. ${dateLabel.format(new Date(value))}` : null;
 
 type MasterLot = (typeof masterLots)[number];
-type SortKey = "owner" | "primaryLotCount" | "ownerWeight" | "value";
-type SortDirection = "asc" | "desc";
-
-const sortOptions: Array<{ value: SortKey; label: string }> = [
-  { value: "ownerWeight", label: "Poids copropriété" },
-  { value: "value", label: "Valeur estimée" },
-  { value: "primaryLotCount", label: "Lots principaux" },
-  { value: "owner", label: "Nom" },
-];
-
 const categoryNames = ["Parkings", "Caves", "Bureaux / commerces", "Habitations"];
 const primaryCategoryNames = ["Habitations", "Bureaux / commerces"];
 const categoryEmoji: Record<string, string> = { Parkings: "🅿️", Caves: "📦", "Bureaux / commerces": "💼", Habitations: "🏠" };
 const categoryShortName: Record<string, string> = { Parkings: "Parkings", Caves: "Caves", "Bureaux / commerces": "Bureaux / commerces", Habitations: "Habitations" };
 
 export default function Home() {
-  const [sortKey, setSortKey] = useState<SortKey>("ownerWeight");
-  const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
-
   const ownerGroups = useMemo(() => {
     const grouped = new Map<string, MasterLot[]>();
     prospectLots.forEach((lot) => {
@@ -206,34 +193,10 @@ export default function Home() {
       };
     });
 
-    const sortValue = (row: (typeof rows)[number]): string | number => {
-      switch (sortKey) {
-        case "owner": return row.ownerName;
-        case "primaryLotCount": return row.primaryLotCount;
-        case "ownerWeight": return row.ownerWeight;
-        case "value": return row.value;
-      }
-    };
-
     return rows.sort((a, b) => {
-      const aValue = sortValue(a);
-      const bValue = sortValue(b);
-      const comparison = typeof aValue === "number" && typeof bValue === "number"
-        ? aValue - bValue
-        : String(aValue).localeCompare(String(bValue), "fr", { numeric: true, sensitivity: "base" });
-      const directed = sortDirection === "asc" ? comparison : -comparison;
-      return directed || a.ownerName.localeCompare(b.ownerName, "fr");
+      return b.ownerWeight - a.ownerWeight || a.ownerName.localeCompare(b.ownerName, "fr");
     });
-  }, [sortKey, sortDirection]);
-
-  const changeSort = (key: SortKey) => {
-    if (sortKey === key) {
-      setSortDirection((direction) => direction === "asc" ? "desc" : "asc");
-      return;
-    }
-    setSortKey(key);
-    setSortDirection(["primaryLotCount", "ownerWeight", "value"].includes(key) ? "desc" : "asc");
-  };
+  }, []);
 
   return (
     <main className="page-shell">
@@ -253,8 +216,6 @@ export default function Home() {
 
       <section className="section lots-section">
         <div className="section-title"><div><span className="eyebrow copper">📊 PORTEFEUILLES À ACQUÉRIR</span><h2>Propriétaires à contacter</h2></div><strong>👥 {ownerGroups.length} propriétaires · 🧩 {prospectLots.length} lots</strong></div>
-
-        <div className="portfolio-sort" aria-label="Tri des portefeuilles"><span>↕️ Trier par</span>{sortOptions.map((option) => <button key={option.value} type="button" className={sortKey === option.value ? "active" : ""} onClick={() => changeSort(option.value)}>{option.label} {sortKey === option.value && <b>{sortDirection === "asc" ? "↑" : "↓"}</b>}</button>)}</div>
 
         <div className="portfolio-grid">
           {ownerGroups.filter((group) => group.primaryLotCount > 0).map((group) => <article key={group.ownerName} className="portfolio-card">
