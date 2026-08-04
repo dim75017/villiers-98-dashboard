@@ -167,6 +167,10 @@ strong, b { font-weight: 800; }
 .section-title h2 { margin: 7px 0 0; color: #fff; font-size: 34px; font-weight: 800; line-height: 1; letter-spacing: -0.065em; }
 .section-actions { display: flex; align-items: flex-end; flex-direction: column; gap: 8px; }
 .section-actions > strong { padding: 9px 12px; border: 1px solid rgba(130, 151, 255, 0.28); border-radius: 999px; background: rgba(130, 151, 255, 0.08); color: #cbd3ff; font-size: 11px; font-weight: 750; white-space: nowrap; }
+.view-switch { display: inline-flex; padding: 4px; border: 1px solid rgba(130, 151, 255, 0.24); border-radius: 11px; background: rgba(130, 151, 255, 0.055); }
+.view-switch button { padding: 8px 11px; border: 0; border-radius: 8px; background: transparent; color: #9da9bc; cursor: pointer; font-size: 11px; font-weight: 800; transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease; }
+.view-switch button:hover { color: #e6ebff; }
+.view-switch button.active { background: linear-gradient(135deg, rgba(126, 148, 255, 0.32), rgba(102, 215, 255, 0.16)); color: #f2f5ff; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2); }
 .private-status { min-height: 30px; padding: 7px 10px; border: 1px solid rgba(102, 215, 255, 0.26); border-radius: 9px; background: rgba(102, 215, 255, 0.07); color: #bfeeff; font-size: 10px; font-weight: 800; }
 .private-status.loading { color: #aeb9c9; }
 .private-status.error { border-color: rgba(248, 113, 113, 0.3); background: rgba(239, 68, 68, 0.08); color: #ffb4b4; }
@@ -175,6 +179,19 @@ strong, b { font-weight: 800; }
 .mailing-links a:hover { border-color: rgba(130, 151, 255, 0.5); background: rgba(130, 151, 255, 0.14); }
 
 .portfolio-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.floor-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.floor-card { min-width: 0; padding: 17px; border: 1px solid rgba(255, 255, 255, 0.085); border-radius: 15px; background: linear-gradient(145deg, rgba(18, 24, 36, 0.98), rgba(12, 16, 25, 0.98)); }
+.floor-card > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding-bottom: 13px; border-bottom: 1px solid rgba(255, 255, 255, 0.075); }
+.floor-kicker { display: block; color: #91a2bf; font: 750 10px var(--font-mono), monospace; letter-spacing: 0.09em; }
+.floor-card h3 { margin: 6px 0 0; color: #fff; font-size: 21px; font-weight: 800; line-height: 1.1; letter-spacing: -0.05em; }
+.floor-card > header > strong { flex: 0 0 auto; color: #c7efff; font-size: 10px; font-weight: 800; line-height: 1.35; text-align: right; }
+.floor-lots { display: grid; grid-template-columns: repeat(auto-fit, minmax(185px, 1fr)); gap: 7px; margin-top: 13px; }
+.floor-lot { display: grid; gap: 3px; min-width: 0; padding: 10px; border: 1px solid rgba(255, 255, 255, 0.075); border-radius: 10px; background: rgba(7, 11, 18, 0.62); }
+.floor-lot > span { color: #91a1b6; font-size: 9px; font-weight: 750; line-height: 1.25; }
+.floor-lot > b { color: #fff; font: 800 12px var(--font-mono), monospace; }
+.floor-lot > strong { color: #cbd4e3; font-size: 11px; font-weight: 750; line-height: 1.35; overflow-wrap: anywhere; }
+.floor-lot small { color: #93cce1; font-size: 10px; font-weight: 700; }
+.floor-lot em { color: #d5e0ff; font: 750 10px var(--font-mono), monospace; font-style: normal; }
 .portfolio-card {
   display: flex;
   flex-direction: column;
@@ -258,6 +275,7 @@ strong, b { font-weight: 800; }
 
 @media (max-width: 1050px) {
   .portfolio-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .floor-grid { grid-template-columns: 1fr; }
   .accessory-owner-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
@@ -280,6 +298,8 @@ strong, b { font-weight: 800; }
   .section-title { align-items: flex-start; flex-direction: column; }
   .section-title h2 { font-size: 29px; }
   .section-actions { align-items: flex-start; width: 100%; }
+  .view-switch { width: 100%; }
+  .view-switch button { flex: 1 1 0; }
   .mailing-links { justify-content: flex-start; }
   .section-actions > strong { white-space: normal; }
   .private-status { width: fit-content; }

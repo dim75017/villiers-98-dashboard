@@ -258,14 +258,23 @@ const categoryNames = ["Parkings", "Caves", "Bureaux / commerces", "Habitations"
 const primaryCategoryNames = ["Habitations", "Bureaux / commerces"];
 const categoryEmoji: Record<string, string> = { Parkings: "🅿️", Caves: "📦", "Bureaux / commerces": "💼", Habitations: "🏠" };
 const categoryShortName: Record<string, string> = { Parkings: "Parkings", Caves: "Caves", "Bureaux / commerces": "Bureaux / commerces", Habitations: "Habitations" };
-const residentLettersUrl = "https://docs.google.com/document/d/1ke65Fnhd2RdQ6z47S8dVAJqsTUPFHQRl7eHrwycGGyE/edit";
-const nonResidentLettersUrl = "https://docs.google.com/document/d/1zt78yphoeprIqHySRpM6ztnYwI_93fKSRck3a9tfW1w/edit";
+
+const floorRank = (floor: string | null) => {
+  const label = floor?.toLocaleLowerCase("fr") ?? "";
+  const basement = label.match(/(\d+)(?:er|e) sous-sol/);
+  if (basement) return -Number(basement[1]);
+  if (label.includes("rez-de-jardin")) return -0.5;
+  if (label.includes("rez-de-chaussée") || label.includes("rdc")) return 0;
+  const level = label.match(/(\d+)(?:er|e) étage/);
+  return level ? Number(level[1]) : 100;
+};
 
 export default function Home({ privateAddressData, onLock }: HomeProps = {}) {
   const [privateAddresses, setPrivateAddresses] = useState<Record<string, PrivateAddressEntry>>(privateAddressData ?? {});
   const [privateAddressStatus, setPrivateAddressStatus] = useState<"loading" | "loaded" | "error">(privateAddressData ? "loaded" : "loading");
   const [copiedOwner, setCopiedOwner] = useState<string | null>(null);
   const [revealedAddressOwner, setRevealedAddressOwner] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<"owner" | "floor">("owner");
 
   useEffect(() => {
     if (privateAddressData) {
@@ -389,6 +398,24 @@ export default function Home({ privateAddressData, onLock }: HomeProps = {}) {
     });
   }, []);
 
+  const floorGroups = useMemo(() => {
+    const grouped = new Map<string, MasterLot[]>();
+    prospectLots.forEach((lot) => {
+      const floor = lot.etage ?? "Niveau à confirmer";
+      const current = grouped.get(floor) ?? [];
+      current.push(lot);
+      grouped.set(floor, current);
+    });
+
+    return Array.from(grouped.entries())
+      .map(([floor, floorLots]) => ({
+        floor,
+        lots: [...floorLots].sort((a, b) => a.lot - b.lot),
+        value: floorLots.reduce((sum, lot) => sum + (lot.valeurEstimee ?? 0), 0),
+      }))
+      .sort((a, b) => floorRank(a.floor) - floorRank(b.floor));
+  }, []);
+
   const addressReveal = (ownerName: string, isResident: boolean) => {
     const isOpen = revealedAddressOwner === ownerName;
     const entry = isResident ? null : privateAddresses[ownerName];
@@ -430,9 +457,9 @@ export default function Home({ privateAddressData, onLock }: HomeProps = {}) {
       </section>
 
       <section className="section lots-section">
-        <div className="section-title"><div><span className="eyebrow copper">📊 PORTEFEUILLES À ACQUÉRIR</span><h2>Propriétaires à contacter</h2></div><div className="section-actions"><strong>👥 {ownerGroups.length} propriétaires · 🧩 {prospectLots.length} lots</strong><div className="mailing-links"><a href={residentLettersUrl} target="_blank" rel="noreferrer">📄 Lettres résidents</a><a href={nonResidentLettersUrl} target="_blank" rel="noreferrer">✉️ 27 lettres non-résidents</a></div><div className={`private-status ${privateAddressStatus}`}>{privateAddressStatus === "loaded" ? "🔒 27 adresses disponibles · 2 à confirmer" : privateAddressStatus === "loading" ? "🔒 Chargement des adresses…" : "⚠️ Adresses privées indisponibles"}</div></div></div>
+        <div className="section-title"><div><span className="eyebrow copper">📊 PORTEFEUILLES À ACQUÉRIR</span><h2>Propriétaires à contacter</h2></div><div className="section-actions"><div className="view-switch" role="group" aria-label="Mode d’affichage"><button type="button" className={viewMode === "owner" ? "active" : ""} aria-pressed={viewMode === "owner"} onClick={() => setViewMode("owner")}>👥 Par propriétaire</button><button type="button" className={viewMode === "floor" ? "active" : ""} aria-pressed={viewMode === "floor"} onClick={() => setViewMode("floor")}>🏢 Par étage</button></div></div></div>
 
-        <div className="portfolio-grid">
+        {viewMode === "owner" ? <><div className="portfolio-grid">
           {ownerGroups.filter((group) => group.primaryLotCount > 0).map((group) => <article key={group.ownerName} className="portfolio-card">
             <header><div><span className="portfolio-type">{text(group.type)}</span><h3>👤 {group.ownerName}</h3>{addressReveal(group.ownerName, group.mailboxSeen)}{group.commonControlNote && <small className="portfolio-subtitle">⚖️ {group.commonControlNote}</small>}{group.corporateProfiles && <div className="corporate-profiles">{group.corporateProfiles.map((profile) => <div key={profile.entity} className="corporate-profile"><strong>🏢 {profile.entity}{profile.siren ? ` · SIREN ${profile.siren}` : ""}</strong>{profile.current && <span>{profile.current}</span>}{profile.people && <span>{profile.people}</span>}{profile.caveat && <small>{profile.caveat}</small>}<a href={profile.sourceUrl} target="_blank" rel="noreferrer">↗ {profile.sourceLabel}</a></div>)}</div>}</div><div className="portfolio-weight"><strong>{pct(group.ownerShare)}</strong><span>{number.format(group.ownerWeight)} tantièmes</span></div></header>
             <div className="primary-categories">{group.primaryCategories.map((category) => <section key={category.name} className={`primary-category ${category.name === "Habitations" ? "habitation" : "bureau"}`}><h4>{categoryEmoji[category.name]} {categoryShortName[category.name]}</h4><div>{category.lots.map((lot) => { const surfaceDetail = surfaceEstimateForLot(lot); const acquisition = acquisitionLabel(lot.dateAcquisition); return <span key={lot.lot} className="primary-lot"><b>Lot {lot.lot}</b><small>{text(lot.etage)}{surfaceDetail ? ` · ${surfaceDetail.documented ? "" : "≈ "}${number.format(surfaceDetail.value)} m²` : ""}</small>{acquisition && <i>📅 {acquisition}</i>}{lot.valeurEstimee && <em>≈ {money(lot.valeurEstimee)}</em>}{lot.valuationNote && <i>{lot.valuationNote}</i>}</span>; })}</div></section>)}</div>
@@ -440,7 +467,7 @@ export default function Home({ privateAddressData, onLock }: HomeProps = {}) {
             <footer><span>{group.estimatedPrimarySurface ? `📐 ${group.estimatedPrimarySurfaceCount ? "≈ " : ""}${number.format(group.estimatedPrimarySurface)} m²${group.documentedPrimarySurfaceCount ? ` · ${group.documentedPrimarySurfaceCount} mesuré${group.documentedPrimarySurfaceCount > 1 ? "s" : ""}` : ""}` : "📐 Surface non reconstituée"}</span><span>{group.value ? `💶 ≈ ${money(group.value)}` : ""}</span></footer>
           </article>)}</div>
 
-        <section className="accessory-section"><div><span className="eyebrow">🅿️ 📦 ANNEXES SEULES</span><h3>Parkings et caves sans logement ni bureau associé</h3><p>Ils restent recensés, sans prendre la place des portefeuilles principaux.</p></div><div className="accessory-owner-list">{ownerGroups.filter((group) => group.primaryLotCount === 0).map((group) => <article key={group.ownerName}><div><strong>👤 {group.ownerName}</strong><small>{text(group.type)} · {number.format(group.ownerWeight)} tantièmes</small>{addressReveal(group.ownerName, group.mailboxSeen)}{group.corporateProfiles && <div className="corporate-profiles compact">{group.corporateProfiles.map((profile) => <div key={profile.entity} className="corporate-profile"><strong>🏢 {profile.entity}{profile.siren ? ` · SIREN ${profile.siren}` : ""}</strong>{profile.current && <span>{profile.current}</span>}{profile.people && <span>{profile.people}</span>}{profile.caveat && <small>{profile.caveat}</small>}<a href={profile.sourceUrl} target="_blank" rel="noreferrer">↗ {profile.sourceLabel}</a></div>)}</div>}</div><p>{group.accessoryCategories.map((category) => { const categoryValue = category.lots.reduce((sum, lot) => sum + (lot.valeurEstimee ?? 0), 0); const acquisitions = category.lots.map((lot) => acquisitionLabel(lot.dateAcquisition) ? `L${lot.lot} · ${acquisitionLabel(lot.dateAcquisition)}` : null).filter(Boolean); return <span key={category.name}>{categoryEmoji[category.name]} {category.lots.length} {categoryShortName[category.name].toLocaleLowerCase("fr")} : {category.lots.map((lot) => lot.lot).join(", ")}{categoryValue ? ` · ≈ ${money(categoryValue)}` : ""}{acquisitions.length ? ` · 📅 ${acquisitions.join(" · ")}` : ""}</span>; })}</p></article>)}</div></section>
+        <section className="accessory-section"><div><span className="eyebrow">🅿️ 📦 ANNEXES SEULES</span><h3>Parkings et caves sans logement ni bureau associé</h3><p>Ils restent recensés, sans prendre la place des portefeuilles principaux.</p></div><div className="accessory-owner-list">{ownerGroups.filter((group) => group.primaryLotCount === 0).map((group) => <article key={group.ownerName}><div><strong>👤 {group.ownerName}</strong><small>{text(group.type)} · {number.format(group.ownerWeight)} tantièmes</small>{addressReveal(group.ownerName, group.mailboxSeen)}{group.corporateProfiles && <div className="corporate-profiles compact">{group.corporateProfiles.map((profile) => <div key={profile.entity} className="corporate-profile"><strong>🏢 {profile.entity}{profile.siren ? ` · SIREN ${profile.siren}` : ""}</strong>{profile.current && <span>{profile.current}</span>}{profile.people && <span>{profile.people}</span>}{profile.caveat && <small>{profile.caveat}</small>}<a href={profile.sourceUrl} target="_blank" rel="noreferrer">↗ {profile.sourceLabel}</a></div>)}</div>}</div><p>{group.accessoryCategories.map((category) => { const categoryValue = category.lots.reduce((sum, lot) => sum + (lot.valeurEstimee ?? 0), 0); const acquisitions = category.lots.map((lot) => acquisitionLabel(lot.dateAcquisition) ? `L${lot.lot} · ${acquisitionLabel(lot.dateAcquisition)}` : null).filter(Boolean); return <span key={category.name}>{categoryEmoji[category.name]} {category.lots.length} {categoryShortName[category.name].toLocaleLowerCase("fr")} : {category.lots.map((lot) => lot.lot).join(", ")}{categoryValue ? ` · ≈ ${money(categoryValue)}` : ""}{acquisitions.length ? ` · 📅 ${acquisitions.join(" · ")}` : ""}</span>; })}</p></article>)}</div></section></> : <div className="floor-grid">{floorGroups.map((group) => <article key={group.floor} className="floor-card"><header><div><span className="floor-kicker">🏢 NIVEAU</span><h3>{group.floor}</h3></div><strong>{group.lots.length} lot{group.lots.length > 1 ? "s" : ""} · ≈ {money(group.value)}</strong></header><div className="floor-lots">{group.lots.map((lot) => { const surfaceDetail = surfaceEstimateForLot(lot); const ownerName = lot.proprietaire ? commonControlPortfolios[lot.proprietaire]?.name ?? lot.proprietaire : "À identifier"; return <article key={lot.lot} className="floor-lot"><span>{categoryEmoji[lot.categorie]} {categoryShortName[lot.categorie]}</span><b>Lot {lot.lot}</b><strong>{ownerName}</strong>{surfaceDetail && <small>{surfaceDetail.documented ? "" : "≈ "}{number.format(surfaceDetail.value)} m²</small>}{lot.valeurEstimee && <em>≈ {money(lot.valeurEstimee)}</em>}</article>; })}</div></article>)}</div>}
       </section>
 
     </main>
