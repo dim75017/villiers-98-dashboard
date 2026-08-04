@@ -1,0 +1,13 @@
+[
+  {
+    "source": "Source publique",
+    "externalId": "identifiant-public-stable-si-disponible",
+    "url": "https://example.com/annonce/123?utm_source=veille",
+    "title": "Appartement à vendre au 98 avenue de Villiers",
+    "publishedAt": "2026-08-04",
+    "priceEuro": 1000000,
+    "surfaceM2": 50,
+    "rooms": 2,
+    "floor": "3"
+  }
+]

@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "property": {
+    "label": "98 avenue de Villiers, 75017 Paris",
+    "address": {
+      "number": "98",
+      "street": "Avenue de Villiers",
+      "postcode": "75017"
+    }
+  },
+  "ademe": {
+    "enabled": true,
+    "endpoint": "https://data.ademe.fr/data-fair/api/v1/datasets/meg-83tjwtg8dyz4vv7h1dqe/lines",
+    "pageSize": 100,
+    "timeoutMs": 30000
+  },
+  "rne": {
+    "enabled": true,
+    "endpoint": "https://recherche-entreprises.api.gouv.fr/search",
+    "timeoutMs": 30000,
+    "companies": [
+      {
+        "label": "SARL IMMOVILLIERS",
+        "siren": "521511634"
+      },
+      {
+        "label": "SCI SC 98 BV / 98BV",
+        "siren": "520373945"
+      },
+      {
+        "label": "SCI SC 98 HV / 98HV",
+        "siren": "520367608"
+      },
+      {
+        "label": "Société VILLIERS PRESTIGE",
+        "siren": "931591226"
+      },
+      {
+        "label": "SCI 13ÈME SOUS SOL",
+        "siren": "519413561"
+      }
+    ],
+    "unresolvedCompanies": [
+      {
+        "label": "SCI SODAIM",
+        "reason": "Plusieurs entités SODAIM existent et aucun SIREN n'est confirmé par les pièces locales."
+      }
+    ]
+  },
+  "announcements": {
+    "enabled": true,
+    "candidatesFile": "../.private/villiers-watch-announcement-candidates.json",
+    "automationQueries": [
+      "\"98 avenue de Villiers\" vente appartement",
+      "\"98 avenue de Villiers\" à vendre",
+      "\"98 avenue de Villiers\" vente bureau",
+      "\"98 avenue de Villiers\" vente parking"
+    ]
+  },
+  "privacy": {
+    "stateDir": "../.private",
+    "stateFile": "villiers-watch-state.json",
+    "journalFile": "villiers-watch-journal.ndjson",
+    "alertsFile": "villiers-watch-alerts.ndjson",
+    "latestReportFile": "villiers-watch-latest-report.json"
+  }
+}
