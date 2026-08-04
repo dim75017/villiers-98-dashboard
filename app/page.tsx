@@ -194,6 +194,7 @@ export default function Home({ privateAddressData, onLock }: HomeProps = {}) {
   const [privateAddresses, setPrivateAddresses] = useState<Record<string, PrivateAddressEntry>>(privateAddressData ?? {});
   const [privateAddressStatus, setPrivateAddressStatus] = useState<"loading" | "loaded" | "error">(privateAddressData ? "loaded" : "loading");
   const [copiedOwner, setCopiedOwner] = useState<string | null>(null);
+  const [revealedAddressOwner, setRevealedAddressOwner] = useState<string | null>(null);
 
   useEffect(() => {
     if (privateAddressData) {
@@ -316,19 +317,27 @@ export default function Home({ privateAddressData, onLock }: HomeProps = {}) {
     });
   }, []);
 
-  const privateAddressBlock = (ownerName: string, isResident: boolean) => {
-    if (isResident || privateAddressStatus !== "loaded") return null;
-    const entry = privateAddresses[ownerName];
-    return <div className={`private-address${entry?.address ? "" : " missing"}`}>
-      <div>
-        <span>📮 Adresse de correspondance</span>
-        <strong>{entry?.address ?? "Adresse à confirmer"}</strong>
-        {entry?.address && <small>{[entry.source, entry.status].filter(Boolean).join(" · ")}</small>}
-        <em className={`letter-state ${entry?.letterReady ? "ready" : "blocked"}`}>{entry?.letterReady ? "✉️ Lettre prête" : "⏸️ Lettre en attente"}</em>
-      </div>
-      {entry?.address && <button type="button" onClick={() => copyPrivateAddress(ownerName, entry.address!)} aria-label={`Copier l’adresse de ${ownerName}`}>
-        {copiedOwner === ownerName ? "✓ Copiée" : "Copier"}
-      </button>}
+  const addressReveal = (ownerName: string, isResident: boolean) => {
+    const isOpen = revealedAddressOwner === ownerName;
+    const entry = isResident ? null : privateAddresses[ownerName];
+    const address = isResident ? "98 avenue de Villiers, 75017 Paris" : entry?.address;
+    const isLoading = !isResident && privateAddressStatus === "loading";
+    return <div className="address-reveal">
+      <button
+        type="button"
+        className={`mailbox-status ${isResident ? "seen" : "not-seen"}`}
+        aria-expanded={isOpen}
+        aria-controls={`address-${ownerName.replace(/[^a-z0-9]/gi, "-")}`}
+        onClick={() => setRevealedAddressOwner(isOpen ? null : ownerName)}
+      >
+        {isResident ? "Résident" : "Non-résident"}
+      </button>
+      {isOpen && <div id={`address-${ownerName.replace(/[^a-z0-9]/gi, "-")}`} className={`address-popover${address ? "" : " missing"}`} role="status">
+        <span>📮 {isLoading ? "Chargement de l’adresse…" : address ?? "Adresse à confirmer"}</span>
+        {address && <button type="button" onClick={() => copyPrivateAddress(ownerName, address)} aria-label={`Copier l’adresse de ${ownerName}`}>
+          {copiedOwner === ownerName ? "✓ Copiée" : "Copier"}
+        </button>}
+      </div>}
     </div>;
   };
 
@@ -353,14 +362,13 @@ export default function Home({ privateAddressData, onLock }: HomeProps = {}) {
 
         <div className="portfolio-grid">
           {ownerGroups.filter((group) => group.primaryLotCount > 0).map((group) => <article key={group.ownerName} className="portfolio-card">
-            <header><div><span className="portfolio-type">{text(group.type)}</span><h3>👤 {group.ownerName}</h3><span className={`mailbox-status ${group.mailboxSeen ? "seen" : "not-seen"}`}>{group.mailboxSeen ? "Résident" : "Non-résident"}</span>{group.commonControlNote && <small className="portfolio-subtitle">⚖️ {group.commonControlNote}</small>}</div><div className="portfolio-weight"><strong>{pct(group.ownerShare)}</strong><span>{number.format(group.ownerWeight)} tantièmes</span></div></header>
-            {privateAddressBlock(group.ownerName, group.mailboxSeen)}
+            <header><div><span className="portfolio-type">{text(group.type)}</span><h3>👤 {group.ownerName}</h3>{addressReveal(group.ownerName, group.mailboxSeen)}{group.commonControlNote && <small className="portfolio-subtitle">⚖️ {group.commonControlNote}</small>}</div><div className="portfolio-weight"><strong>{pct(group.ownerShare)}</strong><span>{number.format(group.ownerWeight)} tantièmes</span></div></header>
             <div className="primary-categories">{group.primaryCategories.map((category) => <section key={category.name} className={`primary-category ${category.name === "Habitations" ? "habitation" : "bureau"}`}><h4>{categoryEmoji[category.name]} {categoryShortName[category.name]}</h4><div>{category.lots.map((lot) => { const surfaceDetail = surfaceEstimateForLot(lot); const acquisition = acquisitionLabel(lot.dateAcquisition); return <span key={lot.lot} className="primary-lot"><b>Lot {lot.lot}</b><small>{text(lot.etage)}{surfaceDetail ? ` · ${surfaceDetail.documented ? "" : "≈ "}${number.format(surfaceDetail.value)} m²` : ""}</small>{acquisition && <i>📅 {acquisition}</i>}{lot.valeurEstimee && <em>≈ {money(lot.valeurEstimee)}</em>}{lot.valuationNote && <i>{lot.valuationNote}</i>}</span>; })}</div></section>)}</div>
             {group.accessoryLots.length > 0 && <div className="accessory-line">{group.accessoryCategories.map((category) => { const categoryValue = category.lots.reduce((sum, lot) => sum + (lot.valeurEstimee ?? 0), 0); const acquisitions = category.lots.map((lot) => acquisitionLabel(lot.dateAcquisition) ? `L${lot.lot} · ${acquisitionLabel(lot.dateAcquisition)}` : null).filter(Boolean); return <span key={category.name}>{categoryEmoji[category.name]} {category.lots.length} {categoryShortName[category.name].toLocaleLowerCase("fr")} · lots {category.lots.map((lot) => lot.lot).join(", ")}{categoryValue ? ` · ≈ ${money(categoryValue)}` : ""}{acquisitions.length ? ` · 📅 ${acquisitions.join(" · ")}` : ""}</span>; })}</div>}
             <footer><span>{group.estimatedPrimarySurface ? `📐 ${group.estimatedPrimarySurfaceCount ? "≈ " : ""}${number.format(group.estimatedPrimarySurface)} m²${group.documentedPrimarySurfaceCount ? ` · ${group.documentedPrimarySurfaceCount} mesuré${group.documentedPrimarySurfaceCount > 1 ? "s" : ""}` : ""}` : "📐 Surface non reconstituée"}</span><span>{group.value ? `💶 ≈ ${money(group.value)}` : ""}</span></footer>
           </article>)}</div>
 
-        <section className="accessory-section"><div><span className="eyebrow">🅿️ 📦 ANNEXES SEULES</span><h3>Parkings et caves sans logement ni bureau associé</h3><p>Ils restent recensés, sans prendre la place des portefeuilles principaux.</p></div><div className="accessory-owner-list">{ownerGroups.filter((group) => group.primaryLotCount === 0).map((group) => <article key={group.ownerName}><div><strong>👤 {group.ownerName}</strong><small>{text(group.type)} · {number.format(group.ownerWeight)} tantièmes</small><span className={`mailbox-status ${group.mailboxSeen ? "seen" : "not-seen"}`}>{group.mailboxSeen ? "Résident" : "Non-résident"}</span></div>{privateAddressBlock(group.ownerName, group.mailboxSeen)}<p>{group.accessoryCategories.map((category) => { const categoryValue = category.lots.reduce((sum, lot) => sum + (lot.valeurEstimee ?? 0), 0); const acquisitions = category.lots.map((lot) => acquisitionLabel(lot.dateAcquisition) ? `L${lot.lot} · ${acquisitionLabel(lot.dateAcquisition)}` : null).filter(Boolean); return <span key={category.name}>{categoryEmoji[category.name]} {category.lots.length} {categoryShortName[category.name].toLocaleLowerCase("fr")} : {category.lots.map((lot) => lot.lot).join(", ")}{categoryValue ? ` · ≈ ${money(categoryValue)}` : ""}{acquisitions.length ? ` · 📅 ${acquisitions.join(" · ")}` : ""}</span>; })}</p></article>)}</div></section>
+        <section className="accessory-section"><div><span className="eyebrow">🅿️ 📦 ANNEXES SEULES</span><h3>Parkings et caves sans logement ni bureau associé</h3><p>Ils restent recensés, sans prendre la place des portefeuilles principaux.</p></div><div className="accessory-owner-list">{ownerGroups.filter((group) => group.primaryLotCount === 0).map((group) => <article key={group.ownerName}><div><strong>👤 {group.ownerName}</strong><small>{text(group.type)} · {number.format(group.ownerWeight)} tantièmes</small>{addressReveal(group.ownerName, group.mailboxSeen)}</div><p>{group.accessoryCategories.map((category) => { const categoryValue = category.lots.reduce((sum, lot) => sum + (lot.valeurEstimee ?? 0), 0); const acquisitions = category.lots.map((lot) => acquisitionLabel(lot.dateAcquisition) ? `L${lot.lot} · ${acquisitionLabel(lot.dateAcquisition)}` : null).filter(Boolean); return <span key={category.name}>{categoryEmoji[category.name]} {category.lots.length} {categoryShortName[category.name].toLocaleLowerCase("fr")} : {category.lots.map((lot) => lot.lot).join(", ")}{categoryValue ? ` · ≈ ${money(categoryValue)}` : ""}{acquisitions.length ? ` · 📅 ${acquisitions.join(" · ")}` : ""}</span>; })}</p></article>)}</div></section>
       </section>
 
     </main>
