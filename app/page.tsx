@@ -434,7 +434,7 @@ export default function Home({ privateAddressData, onLock }: HomeProps = {}) {
         aria-controls={`address-${ownerName.replace(/[^a-z0-9]/gi, "-")}`}
         onClick={() => setRevealedAddressOwner(isOpen ? null : ownerName)}
       >
-        {isResident ? "Résident" : "Non-résident"}
+        📍 {isResident ? "Résident" : "Non-résident"}
       </button>
       {isOpen && <div id={`address-${ownerName.replace(/[^a-z0-9]/gi, "-")}`} className={`address-popover${address ? "" : " missing"}`} role="status">
         <span>📮 {isLoading ? "Chargement de l’adresse…" : address ?? "Adresse à confirmer"}</span>
