@@ -526,8 +526,8 @@ export default function Home({ privateAddressData, onLock }: HomeProps = {}) {
   return (
     <main className="page-shell">
       <header className="simple-header">
-        <div className="identity"><span className="identity-mark">98</span><div><strong>🏛️ 98 avenue de Villiers</strong><small>ACQUISITION PROGRESSIVE · PARIS 17</small></div></div>
-        <div className="header-meta"><span>🗓️ Mise à jour · 4 août 2026</span><nav className="dashboard-nav" aria-label="Vue principale"><button type="button" className={topView === "owners" ? "active" : ""} aria-pressed={topView === "owners"} onClick={() => setTopView("owners")}>👥 Liste des propriétaires</button><button type="button" className={topView === "operations" ? "active" : ""} aria-pressed={topView === "operations"} onClick={() => setTopView("operations")}>🗂️ Suivi opérationnel</button></nav>{onLock && <button type="button" className="dashboard-lock" onClick={onLock}>💻 Oublier cet appareil</button>}</div>
+        <div className="identity"><div><strong>🏛️ 98 avenue de Villiers</strong><small>ACQUISITION PROGRESSIVE · PARIS 17</small></div></div>
+        <div className="header-meta"><nav className="dashboard-nav" aria-label="Vue principale"><button type="button" className={topView === "owners" ? "active" : ""} aria-pressed={topView === "owners"} onClick={() => setTopView("owners")}>👥 Liste des propriétaires</button><button type="button" className={topView === "operations" ? "active" : ""} aria-pressed={topView === "operations"} onClick={() => setTopView("operations")}>🗂️ Suivi opérationnel</button></nav></div>
       </header>
 
       {topView === "owners" ? <><section className="hero">
