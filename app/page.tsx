@@ -170,8 +170,12 @@ const directLots = new Set(lots.filter((lot) => Boolean(lot.proprietaire)).map((
 const officePackageLots = new Set([12, 24, 29, 30, 31, 32, 33, 34, 44, 53]);
 const obsoleteOwnershipNote = /Rattachement au propriétaire non prouvé par les pièces disponibles: laisser vide jusqu'au retour SPF\.\s*/g;
 const valuationOverrides: Record<number, { value: number; note?: string }> = {
+  35: { value: 50_000, note: "Hypothèse Dimitri : parking en 2e sous-sol, à confirmer par l’EDD ou les plans." },
   80: { value: 1600000 },
   84: { value: 3000000 },
+};
+const natureOverrides: Record<number, string> = {
+  35: "Parking",
 };
 
 const categoryForNature = (nature: string | null) => {
@@ -184,7 +188,8 @@ const categoryForNature = (nature: string | null) => {
 const masterLots = lots.map((lot) => {
   const owner = ownerByLot.get(lot.lot);
   const direct = directLots.has(lot.lot);
-  const category = categoryForNature(lot.nature);
+  const displayedNature = natureOverrides[lot.lot] ?? lot.nature;
+  const category = categoryForNature(displayedNature);
   const isOfficePackage = officePackageLots.has(lot.lot);
   const valuationOverride = valuationOverrides[lot.lot];
   const cleanedComment = lot.commentaires?.replace(obsoleteOwnershipNote, "").trim() || null;
@@ -193,6 +198,7 @@ const masterLots = lots.map((lot) => {
     : null;
   return {
     ...lot,
+    nature: displayedNature,
     ...category,
     valeurEstimee: valuationOverride?.value ?? lot.valeurEstimee,
     valuationNote: valuationOverride?.note ?? null,
