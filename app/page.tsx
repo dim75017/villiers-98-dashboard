@@ -257,6 +257,20 @@ const pct = (value: unknown) => typeof value === "number" ? `${number.format(val
 const dateLabel = new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "short", year: "numeric" });
 const acquisitionLabel = (value: string | null | undefined) => value ? `Acq. ${dateLabel.format(new Date(value))}` : null;
 
+type OutreachStage = "to-send" | "sent" | "replied" | "no-response" | "acquired";
+type OutreachRecord = { stage: OutreachStage; sentAt?: string; note?: string };
+type OutreachBook = Record<string, OutreachRecord>;
+const outreachStorageKey = "villiers-98-operational-follow-up-v1";
+const outreachStages: Array<{ value: OutreachStage; label: string }> = [
+  { value: "to-send", label: "À envoyer" },
+  { value: "sent", label: "Envoyée" },
+  { value: "replied", label: "Réponse reçue" },
+  { value: "no-response", label: "Sans réponse" },
+  { value: "acquired", label: "Acquisition faite" },
+];
+const outreachStageLabel = (stage: OutreachStage) => outreachStages.find((item) => item.value === stage)?.label ?? "À envoyer";
+const localDate = () => new Date().toLocaleDateString("en-CA");
+
 type MasterLot = (typeof masterLots)[number];
 const categoryNames = ["Parkings", "Caves", "Bureaux / commerces", "Habitations"];
 const primaryCategoryNames = ["Habitations", "Bureaux / commerces"];
@@ -280,6 +294,32 @@ export default function Home({ privateAddressData, onLock }: HomeProps = {}) {
   const [revealedAddressOwner, setRevealedAddressOwner] = useState<string | null>(null);
   const [revealedCorporateOwner, setRevealedCorporateOwner] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"owner" | "floor">("owner");
+  const [topView, setTopView] = useState<"owners" | "operations">("owners");
+  const [outreach, setOutreach] = useState<OutreachBook>({});
+  const [outreachReady, setOutreachReady] = useState(false);
+
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(outreachStorageKey);
+      if (saved) {
+        const parsed = JSON.parse(saved) as OutreachBook;
+        if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) setOutreach(parsed);
+      }
+    } catch {
+      // Le suivi reste utilisable même si le navigateur refuse le stockage local.
+    } finally {
+      setOutreachReady(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!outreachReady) return;
+    try {
+      window.localStorage.setItem(outreachStorageKey, JSON.stringify(outreach));
+    } catch {
+      // Le navigateur peut bloquer l'écriture en navigation privée stricte.
+    }
+  }, [outreach, outreachReady]);
 
   useEffect(() => {
     if (privateAddressData) {
@@ -459,14 +499,38 @@ export default function Home({ privateAddressData, onLock }: HomeProps = {}) {
     </div>;
   };
 
+  const trackedOwners = ownerGroups.filter((group) => group.ownerName !== "À identifier");
+  const outreachFor = (ownerName: string): OutreachRecord => {
+    const record = outreach[ownerName];
+    return record && outreachStages.some((item) => item.value === record.stage) ? record : { stage: "to-send" };
+  };
+  const updateOutreach = (ownerName: string, update: Partial<OutreachRecord>) => {
+    setOutreach((current) => {
+      const stored = current[ownerName];
+      const record = stored && outreachStages.some((item) => item.value === stored.stage) ? stored : { stage: "to-send" as OutreachStage };
+      return { ...current, [ownerName]: { ...record, ...update } };
+    });
+  };
+  const changeOutreachStage = (ownerName: string, stage: OutreachStage) => {
+    setOutreach((current) => {
+      const stored = current[ownerName];
+      const record = stored && outreachStages.some((item) => item.value === stored.stage) ? stored : { stage: "to-send" as OutreachStage };
+      return { ...current, [ownerName]: { ...record, stage, sentAt: stage === "sent" && !record.sentAt ? localDate() : record.sentAt } };
+    });
+  };
+  const outreachCounts = outreachStages.reduce<Record<OutreachStage, number>>((counts, item) => {
+    counts[item.value] = trackedOwners.filter((group) => outreachFor(group.ownerName).stage === item.value).length;
+    return counts;
+  }, { "to-send": 0, sent: 0, replied: 0, "no-response": 0, acquired: 0 });
+
   return (
     <main className="page-shell">
       <header className="simple-header">
         <div className="identity"><span className="identity-mark">98</span><div><strong>🏛️ 98 avenue de Villiers</strong><small>ACQUISITION PROGRESSIVE · PARIS 17</small></div></div>
-        <div className="header-meta"><span>🗓️ Mise à jour · 4 août 2026</span><b>📌 Suivi opérationnel</b>{onLock && <button type="button" className="dashboard-lock" onClick={onLock}>💻 Oublier cet appareil</button>}</div>
+        <div className="header-meta"><span>🗓️ Mise à jour · 4 août 2026</span><nav className="dashboard-nav" aria-label="Vue principale"><button type="button" className={topView === "owners" ? "active" : ""} aria-pressed={topView === "owners"} onClick={() => setTopView("owners")}>👥 Liste des propriétaires</button><button type="button" className={topView === "operations" ? "active" : ""} aria-pressed={topView === "operations"} onClick={() => setTopView("operations")}>🗂️ Suivi opérationnel</button></nav>{onLock && <button type="button" className="dashboard-lock" onClick={onLock}>💻 Oublier cet appareil</button>}</div>
       </header>
 
-      <section className="hero">
+      {topView === "owners" ? <><section className="hero">
         <div className="metrics">
           <article><small>🧩 Lots à acquérir</small><strong>{prospectLots.length}</strong><p>Hors lots déjà maîtrisés</p></article>
           <article><small>👥 Propriétaires à approcher</small><strong>{ownerGroups.length}</strong><p>Les positions déjà détenues sont retirées</p></article>
@@ -487,8 +551,28 @@ export default function Home({ privateAddressData, onLock }: HomeProps = {}) {
           </article>)}</div>
 
         <section className="accessory-section"><div><span className="eyebrow">🅿️ 📦 ANNEXES SEULES</span><h3>Parkings et caves sans logement ni bureau associé</h3><p>Parkings : base de travail ≈ 35 k€ par place, recalibrée sur un loyer observé de 200 à 230 € / mois. À confirmer par dimensions, accès et comparables de vente.</p></div><div className="accessory-owner-list">{ownerGroups.filter((group) => group.primaryLotCount === 0).map((group) => <article key={group.ownerName}><div><strong>👤 {group.ownerName}</strong><small>{text(group.type)} · {number.format(group.ownerWeight)} tantièmes</small><div className="owner-badges">{addressReveal(group.ownerName, group.mailboxSeen)}{corporateReveal(group.ownerName, group.corporateProfiles)}</div></div><p>{group.accessoryCategories.map((category) => { const categoryValue = category.lots.reduce((sum, lot) => sum + (lot.valeurEstimee ?? 0), 0); const acquisitions = category.lots.map((lot) => acquisitionLabel(lot.dateAcquisition) ? `L${lot.lot} · ${acquisitionLabel(lot.dateAcquisition)}` : null).filter(Boolean); return <span key={category.name}>{categoryEmoji[category.name]} {category.lots.length} {categoryShortName[category.name].toLocaleLowerCase("fr")} : {category.lots.map((lot) => lot.lot).join(", ")}{categoryValue ? ` · ≈ ${money(categoryValue)}` : ""}{acquisitions.length ? ` · 📅 ${acquisitions.join(" · ")}` : ""}</span>; })}</p></article>)}</div></section></> : <div className="floor-grid">{floorGroups.map((group) => <article key={group.floor} className="floor-card"><header><div><span className="floor-kicker">🏢 NIVEAU</span><h3>{group.floor}</h3></div><strong>{group.lots.length} lot{group.lots.length > 1 ? "s" : ""} · ≈ {money(group.value)}</strong></header><div className="floor-lots">{group.lots.map((lot) => { const surfaceDetail = surfaceEstimateForLot(lot); const ownerName = lot.proprietaire ? commonControlPortfolios[lot.proprietaire]?.name ?? lot.proprietaire : "À identifier"; const isResident = lot.proprietaire ? ownersSeenOnMailbox.has(ownerName) : null; const profiles = lot.proprietaire ? corporateProfiles[ownerName] ?? null : null; return <article key={lot.lot} className="floor-lot"><span>{categoryEmoji[lot.categorie]} {categoryShortName[lot.categorie]}</span><b>Lot {lot.lot}</b><strong>{ownerName}</strong>{isResident !== null && <div className="owner-badges floor-owner-badges"><i className={isResident ? "resident" : "non-resident"}>📍 {isResident ? "Résident" : "Non-résident"}</i>{corporateReveal(`floor-${lot.lot}`, profiles)}</div>}{surfaceDetail && <small>{surfaceDetail.documented ? "" : "≈ "}{number.format(surfaceDetail.value)} m²</small>}{lot.valeurEstimee && <em>≈ {money(lot.valeurEstimee)}</em>}</article>; })}</div></article>)}</div>}
-      </section>
-
+      </section></> : <section className="section operations-section">
+        <div className="section-title"><div><span className="eyebrow copper">🗂️ PILOTAGE DES APPROCHES</span><h2>Suivi opérationnel</h2></div><p className="operations-save">Enregistré uniquement sur cet appareil</p></div>
+        <div className="operations-summary">
+          <article><small>À envoyer</small><strong>{outreachCounts["to-send"]}</strong></article>
+          <article><small>Envoyées</small><strong>{outreachCounts.sent}</strong></article>
+          <article><small>Réponses</small><strong>{outreachCounts.replied}</strong></article>
+          <article><small>Acquisitions</small><strong>{outreachCounts.acquired}</strong></article>
+        </div>
+        <div className="operations-list">
+          {trackedOwners.map((group) => {
+            const record = outreachFor(group.ownerName);
+            return <article key={group.ownerName} className={`operation-card stage-${record.stage}`}>
+              <header><div><span>{group.mailboxSeen ? "📍 Résident" : "📍 Non-résident"}</span><h3>👤 {group.ownerName}</h3><small>Lots {group.lots.map((lot) => lot.lot).join(", ")} · {number.format(group.ownerWeight)} tantièmes</small></div><strong>{outreachStageLabel(record.stage)}</strong></header>
+              <div className="operation-controls">
+                <label>Statut<select value={record.stage} onChange={(event) => changeOutreachStage(group.ownerName, event.target.value as OutreachStage)}>{outreachStages.map((stage) => <option key={stage.value} value={stage.value}>{stage.label}</option>)}</select></label>
+                <label>Date d’envoi<input type="date" value={record.sentAt ?? ""} onChange={(event) => updateOutreach(group.ownerName, { sentAt: event.target.value || undefined })} /></label>
+              </div>
+              <label className="operation-note">Note<textarea value={record.note ?? ""} placeholder="Ex. courrier déposé, réponse reçue, rappel à prévoir…" onChange={(event) => updateOutreach(group.ownerName, { note: event.target.value })} /></label>
+            </article>;
+          })}
+        </div>
+      </section>}
     </main>
   );
 }

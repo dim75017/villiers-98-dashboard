@@ -71,6 +71,10 @@ strong, b { font-weight: 800; }
 .identity small { display: block; margin-top: 3px; color: #818da0; font: 650 10px var(--font-mono), monospace; letter-spacing: 0.11em; }
 .header-meta { display: flex; flex: 0 0 auto; align-items: center; gap: 12px; padding-right: 2px; color: #8894a6; font-size: 12px; font-weight: 650; }
 .header-meta b { padding: 8px 12px; border: 1px solid rgba(102, 215, 255, 0.28); border-radius: 999px; background: rgba(102, 215, 255, 0.07); color: #bdeaff; font-size: 11px; }
+.dashboard-nav { display: inline-flex; align-items: center; gap: 4px; padding: 4px; border: 1px solid rgba(130, 151, 255, 0.22); border-radius: 11px; background: rgba(130, 151, 255, 0.05); }
+.dashboard-nav button { padding: 7px 9px; border: 0; border-radius: 8px; background: transparent; color: #9ba8bb; cursor: pointer; font-size: 10px; font-weight: 800; transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease; }
+.dashboard-nav button:hover { color: #e7ecff; }
+.dashboard-nav button.active { background: linear-gradient(135deg, rgba(126, 148, 255, 0.32), rgba(102, 215, 255, 0.15)); color: #f2f5ff; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2); }
 .dashboard-lock { padding: 8px 11px; border: 1px solid rgba(248, 113, 113, 0.24); border-radius: 999px; background: rgba(239, 68, 68, 0.07); color: #ffb4b4; cursor: pointer; font-size: 10px; font-weight: 800; }
 .dashboard-lock:hover { border-color: rgba(248, 113, 113, 0.44); background: rgba(239, 68, 68, 0.12); }
 
@@ -177,6 +181,31 @@ strong, b { font-weight: 800; }
 .mailing-links { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; }
 .mailing-links a { padding: 8px 10px; border: 1px solid rgba(130, 151, 255, 0.26); border-radius: 9px; background: rgba(130, 151, 255, 0.08); color: #d4dbff; font-size: 10px; font-weight: 800; transition: border-color 0.18s ease, background 0.18s ease; }
 .mailing-links a:hover { border-color: rgba(130, 151, 255, 0.5); background: rgba(130, 151, 255, 0.14); }
+
+.operations-section { padding-top: 36px; }
+.operations-save { margin: 0; color: #8d9bad; font-size: 11px; font-weight: 700; }
+.operations-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
+.operations-summary article { padding: 16px; border: 1px solid rgba(130, 151, 255, 0.18); border-radius: 13px; background: linear-gradient(145deg, rgba(20, 27, 42, 0.85), rgba(11, 15, 24, 0.82)); }
+.operations-summary small { display: block; color: #96a3b8; font: 750 10px var(--font-mono), monospace; letter-spacing: 0.06em; text-transform: uppercase; }
+.operations-summary strong { display: block; margin-top: 9px; color: #eaf4ff; font-size: 28px; font-weight: 800; letter-spacing: -0.065em; }
+.operations-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.operation-card { min-width: 0; padding: 16px; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 14px; background: linear-gradient(145deg, rgba(18, 24, 36, 0.98), rgba(12, 16, 25, 0.98)); }
+.operation-card.stage-replied { border-color: rgba(102, 215, 255, 0.28); }
+.operation-card.stage-acquired { border-color: rgba(74, 222, 128, 0.32); background: linear-gradient(145deg, rgba(20, 43, 38, 0.72), rgba(12, 23, 23, 0.92)); }
+.operation-card > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.075); }
+.operation-card header span { color: #a8bfd3; font: 750 9px var(--font-mono), monospace; letter-spacing: 0.055em; }
+.operation-card h3 { margin: 5px 0 0; color: #fff; font-size: 17px; font-weight: 800; line-height: 1.16; letter-spacing: -0.045em; overflow-wrap: anywhere; }
+.operation-card header small { display: block; margin-top: 6px; color: #8f9cad; font-size: 10px; font-weight: 700; }
+.operation-card > header > strong { flex: 0 0 auto; padding: 5px 7px; border: 1px solid rgba(130, 151, 255, 0.22); border-radius: 999px; background: rgba(130, 151, 255, 0.08); color: #d6ddff; font-size: 10px; font-weight: 800; white-space: nowrap; }
+.stage-acquired > header > strong { border-color: rgba(74, 222, 128, 0.32); background: rgba(34, 197, 94, 0.1); color: #b7f4cf; }
+.operation-controls { display: grid; grid-template-columns: minmax(0, 1fr) 134px; gap: 9px; margin-top: 12px; }
+.operation-controls label, .operation-note { display: grid; gap: 5px; color: #a9b5c6; font-size: 10px; font-weight: 800; }
+.operation-controls select, .operation-controls input, .operation-note textarea { width: 100%; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; outline: none; background: rgba(5, 8, 14, 0.7); color: #e8edf7; font-size: 12px; font-weight: 700; }
+.operation-controls select, .operation-controls input { min-height: 36px; padding: 7px 8px; }
+.operation-controls select:focus, .operation-controls input:focus, .operation-note textarea:focus { border-color: rgba(102, 215, 255, 0.55); box-shadow: 0 0 0 3px rgba(102, 215, 255, 0.08); }
+.operation-note { margin-top: 10px; }
+.operation-note textarea { min-height: 60px; padding: 9px; resize: vertical; line-height: 1.45; }
+.operation-note textarea::placeholder { color: #677587; }
 
 .portfolio-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .floor-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
@@ -290,6 +319,8 @@ strong, b { font-weight: 800; }
   .simple-header { position: relative; align-items: flex-start; flex-direction: column; gap: 11px; margin: 0 -10px; padding: 13px 14px; }
   .header-meta { width: 100%; justify-content: space-between; }
   .header-meta span { display: none; }
+  .dashboard-nav { flex: 1 1 auto; }
+  .dashboard-nav button { flex: 1 1 0; padding: 8px 7px; }
   .unlock-page { padding: 14px; }
   .unlock-card { padding: 23px; border-radius: 17px; }
   .unlock-card h1 { font-size: 29px; }
@@ -310,6 +341,9 @@ strong, b { font-weight: 800; }
   .section-actions > strong { white-space: normal; }
   .private-status { width: fit-content; }
   .portfolio-grid, .accessory-owner-list { grid-template-columns: 1fr; }
+  .operations-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .operations-list { grid-template-columns: 1fr; }
+  .operation-controls { grid-template-columns: 1fr; }
   .portfolio-card:hover { transform: none; box-shadow: none; }
   .primary-categories { grid-template-columns: 1fr; }
   .portfolio-card > footer { align-items: flex-start; flex-direction: column; }
