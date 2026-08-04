@@ -79,9 +79,9 @@ owners.forEach((owner) => ownerLots[owner.proprietaire]?.forEach((lot) => ownerB
 const directLots = new Set(lots.filter((lot) => Boolean(lot.proprietaire)).map((lot) => lot.lot));
 const officePackageLots = new Set([12, 24, 29, 30, 31, 32, 33, 34, 44, 53]);
 const obsoleteOwnershipNote = /Rattachement au propriétaire non prouvé par les pièces disponibles: laisser vide jusqu'au retour SPF\.\s*/g;
-const valuationOverrides: Record<number, { value: number; note: string }> = {
-  80: { value: 1600000, note: "Vue Tour Eiffel · prime intégrée (hypothèse Dimitri)" },
-  84: { value: 3000000, note: "Vue Tour Eiffel · prime intégrée" },
+const valuationOverrides: Record<number, { value: number; note?: string }> = {
+  80: { value: 1600000 },
+  84: { value: 3000000 },
 };
 
 const categoryForNature = (nature: string | null) => {
