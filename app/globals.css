@@ -190,6 +190,9 @@ strong, b { font-weight: 800; }
 .floor-lot > span { color: #91a1b6; font-size: 9px; font-weight: 750; line-height: 1.25; }
 .floor-lot > b { color: #fff; font: 800 12px var(--font-mono), monospace; }
 .floor-lot > strong { color: #cbd4e3; font-size: 11px; font-weight: 750; line-height: 1.35; overflow-wrap: anywhere; }
+.floor-lot i { width: fit-content; padding: 3px 6px; border: 1px solid rgba(130, 151, 255, 0.2); border-radius: 999px; background: rgba(130, 151, 255, 0.06); color: #b9c5da; font-size: 9px; font-style: normal; font-weight: 800; line-height: 1.2; }
+.floor-lot i.resident { border-color: rgba(74, 222, 128, 0.32); background: rgba(34, 197, 94, 0.09); color: #a7f3c2; }
+.floor-lot i.non-resident { border-color: rgba(248, 113, 113, 0.32); background: rgba(239, 68, 68, 0.09); color: #ffb4b4; }
 .floor-lot small { color: #93cce1; font-size: 10px; font-weight: 700; }
 .floor-lot em { color: #d5e0ff; font: 750 10px var(--font-mono), monospace; font-style: normal; }
 .portfolio-card {
