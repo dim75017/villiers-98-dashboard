@@ -123,7 +123,6 @@ const corporateProfiles: Record<string, CorporateProfile[]> = {
       names: ["Richard Demirci", "Valérie Demirci", "Daniel Demirci"],
       current: "Gérants et associés : Richard Demirci · Valérie Demirci",
       people: "Autre associé public identifié : Daniel Demirci",
-      caveat: "La liste intégrale des associés / bénéficiaires effectifs n'est pas publique.",
       sourceLabel: "RCS / annonces légales",
       sourceUrl: "https://entreprises.lefigaro.fr/villiers-prestige-75/entreprise-931591226",
     },
