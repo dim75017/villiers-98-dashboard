@@ -2,7 +2,7 @@
 
 import { StrictMode, useEffect, useState, type FormEvent } from "react";
 import { createRoot } from "react-dom/client";
-import Home, { type PrivateAddressEntry } from "../app/page";
+import Home, { type PrivateAddressEntry, type PrivateOutreachEntry } from "../app/page";
 import "../app/globals.css";
 
 type EncryptedPayload = {
@@ -23,6 +23,12 @@ type EncryptedPayload = {
 type DecryptedPayload = {
   version?: unknown;
   owners?: unknown;
+  outreach?: unknown;
+};
+
+type PrivateDashboardData = {
+  addresses: Record<string, PrivateAddressEntry>;
+  outreach: Record<string, PrivateOutreachEntry>;
 };
 
 type ValidatedArchive = {
@@ -97,7 +103,7 @@ const deriveArchiveKey = async (password: string, salt: Uint8Array<ArrayBuffer>)
   );
 };
 
-const decryptArchive = async (archive: ValidatedArchive, key: CryptoKey): Promise<Record<string, PrivateAddressEntry>> => {
+const decryptArchive = async (archive: ValidatedArchive, key: CryptoKey): Promise<PrivateDashboardData> => {
   const encoder = new TextEncoder();
   const plaintext = await crypto.subtle.decrypt(
     {
@@ -110,7 +116,7 @@ const decryptArchive = async (archive: ValidatedArchive, key: CryptoKey): Promis
     archive.ciphertext,
   );
   const decrypted = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(plaintext)) as DecryptedPayload;
-  if (decrypted.version !== 2 || !decrypted.owners || typeof decrypted.owners !== "object" || Array.isArray(decrypted.owners)) throw new Error("archive");
+  if (decrypted.version !== 2 || !decrypted.owners || typeof decrypted.owners !== "object" || Array.isArray(decrypted.owners) || !decrypted.outreach || typeof decrypted.outreach !== "object" || Array.isArray(decrypted.outreach)) throw new Error("archive");
   const addressEntries = Object.entries(decrypted.owners);
   if (addressEntries.length !== 29) throw new Error("archive");
 
@@ -125,7 +131,19 @@ const decryptArchive = async (archive: ValidatedArchive, key: CryptoKey): Promis
     if ((cleanAddress?.length ?? 0) > 300 || (cleanSource?.length ?? 0) > 200 || (cleanStatus?.length ?? 0) > 200 || letterReady !== Boolean(cleanAddress)) throw new Error("archive");
     normalized[ownerKey] = { address: cleanAddress, source: cleanSource, status: cleanStatus, letterReady };
   }
-  return normalized;
+  const outreachEntries = Object.entries(decrypted.outreach);
+  if (outreachEntries.length !== 41) throw new Error("archive");
+  const outreach: Record<string, PrivateOutreachEntry> = Object.create(null);
+  for (const [ownerKey, rawEntry] of outreachEntries) {
+    if (!ownerKey || ownerKey.length > 200 || ownerKey === "__proto__" || ownerKey === "constructor" || !rawEntry || typeof rawEntry !== "object" || Array.isArray(rawEntry)) throw new Error("archive");
+    const { stage, sentAt } = rawEntry as Record<string, unknown>;
+    if (stage !== "to-send" && stage !== "sent" && stage !== "replied" && stage !== "no-response" && stage !== "acquired") throw new Error("archive");
+    if (sentAt !== null && typeof sentAt !== "string") throw new Error("archive");
+    const cleanSentAt = typeof sentAt === "string" ? sentAt.trim() || null : null;
+    if ((cleanSentAt?.length ?? 0) > 20 || (cleanSentAt !== null && !/^\d{4}-\d{2}-\d{2}$/.test(cleanSentAt))) throw new Error("archive");
+    outreach[ownerKey] = { stage, sentAt: cleanSentAt };
+  }
+  return { addresses: normalized, outreach };
 };
 
 const openTrustedDeviceDatabase = () => new Promise<IDBDatabase>((resolve, reject) => {
@@ -213,7 +231,7 @@ const isUsableTrustedDevice = (record: TrustedDeviceRecord | null, archive: Vali
 
 function ProtectedDashboard() {
   const [password, setPassword] = useState("");
-  const [privateAddresses, setPrivateAddresses] = useState<Record<string, PrivateAddressEntry> | null>(null);
+  const [privateDashboardData, setPrivateDashboardData] = useState<PrivateDashboardData | null>(null);
   const [isRestoring, setIsRestoring] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -230,8 +248,8 @@ function ProtectedDashboard() {
           return;
         }
         try {
-          const addresses = await decryptArchive(archive, record.key);
-          if (active) setPrivateAddresses(addresses);
+          const dashboardData = await decryptArchive(archive, record.key);
+          if (active) setPrivateDashboardData(dashboardData);
         } catch {
           await forgetTrustedDevice();
         }
@@ -250,13 +268,13 @@ function ProtectedDashboard() {
     if (!password || isLoading) return;
     setIsLoading(true);
     setError("");
-    let addresses: Record<string, PrivateAddressEntry>;
+    let dashboardData: PrivateDashboardData;
     let archive: ValidatedArchive;
     let key: CryptoKey;
     try {
       archive = await fetchArchive();
       key = await deriveArchiveKey(password, archive.salt);
-      addresses = await decryptArchive(archive, key);
+      dashboardData = await decryptArchive(archive, key);
     } catch {
       setError("Mot de passe incorrect.");
       setIsLoading(false);
@@ -265,7 +283,7 @@ function ProtectedDashboard() {
     try {
       await rememberTrustedDevice(archive, key);
       void navigator.storage?.persist?.().catch(() => undefined);
-      setPrivateAddresses(addresses);
+      setPrivateDashboardData(dashboardData);
       setPassword("");
     } catch {
       setError("Mot de passe correct, mais ce navigateur bloque la mémorisation de l’appareil. Autorisez le stockage du site puis réessayez.");
@@ -277,7 +295,7 @@ function ProtectedDashboard() {
   const forgetDevice = async () => {
     try {
       await forgetTrustedDevice();
-      setPrivateAddresses(null);
+      setPrivateDashboardData(null);
       setPassword("");
       setError("");
       window.scrollTo({ top: 0, behavior: "instant" });
@@ -286,7 +304,7 @@ function ProtectedDashboard() {
     }
   };
 
-  if (privateAddresses) return <Home privateAddressData={privateAddresses} onLock={forgetDevice} />;
+  if (privateDashboardData) return <Home privateAddressData={privateDashboardData.addresses} privateOutreachData={privateDashboardData.outreach} onLock={forgetDevice} />;
 
   if (isRestoring) return <main className="unlock-page">
     <section className="unlock-card" aria-live="polite">

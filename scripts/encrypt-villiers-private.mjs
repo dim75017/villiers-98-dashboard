@@ -28,6 +28,13 @@ const owners = Object.fromEntries(
 const entries = Object.entries(owners);
 const available = entries.filter(([, owner]) => Boolean(owner.address)).length;
 if (entries.length !== 29 || available !== 27) throw new Error("Private address counts do not match the validated registry");
+const outreach = Object.fromEntries(
+  registry.owners.map((owner) => {
+    const hold = owner?.outreachHold === true || String(owner?.mailingUse ?? "").toLowerCase().includes("non exploitable");
+    return [owner.ownerKey, { stage: hold ? "to-send" : "sent", sentAt: hold ? null : "2026-08-05" }];
+  }),
+);
+if (Object.keys(outreach).length !== 41) throw new Error("Private outreach count does not match the validated registry");
 
 const encoder = new TextEncoder();
 let salt = randomBytes(16);
@@ -55,7 +62,7 @@ const key = await webcrypto.subtle.deriveKey(
   false,
   ["encrypt"],
 );
-const plaintext = encoder.encode(JSON.stringify({ version: 2, owners }));
+const plaintext = encoder.encode(JSON.stringify({ version: 2, owners, outreach }));
 const encrypted = await webcrypto.subtle.encrypt(
   { name: "AES-GCM", iv, additionalData: encoder.encode(context), tagLength: 128 },
   key,

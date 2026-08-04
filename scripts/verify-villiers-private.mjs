@@ -29,7 +29,10 @@ const decrypt = async (candidate) => {
 const payload = await decrypt(password);
 const owners = Object.entries(payload.owners ?? {});
 const available = owners.filter(([, entry]) => Boolean(entry.address)).length;
-if (archive.version !== 2 || payload.version !== 2 || owners.length !== 29 || available !== 27) {
+const outreach = Object.entries(payload.outreach ?? {});
+const sent = outreach.filter(([, entry]) => entry?.stage === "sent").length;
+const pending = outreach.filter(([, entry]) => entry?.stage === "to-send").length;
+if (archive.version !== 2 || payload.version !== 2 || owners.length !== 29 || available !== 27 || outreach.length !== 41 || sent !== 37 || pending !== 4) {
   throw new Error("Encrypted registry failed its count or version checks");
 }
 if (owners.some(([, entry]) => entry.letterReady !== Boolean(entry.address))) {
@@ -44,4 +47,4 @@ try {
 }
 if (!wrongPasswordRejected) throw new Error("Wrong password was unexpectedly accepted");
 
-console.log(JSON.stringify({ protectedOwners: owners.length, addressesAvailable: available, addressesMissing: owners.length - available, wrongPasswordRejected }));
+console.log(JSON.stringify({ protectedOwners: owners.length, addressesAvailable: available, addressesMissing: owners.length - available, trackedOwners: outreach.length, sent, pending, wrongPasswordRejected }));

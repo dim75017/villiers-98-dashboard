@@ -184,8 +184,10 @@ strong, b { font-weight: 800; }
 
 .operations-section { padding-top: 36px; }
 .operations-save { margin: 0; color: #8d9bad; font-size: 11px; font-weight: 700; }
-.operations-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
-.operations-summary article { padding: 16px; border: 1px solid rgba(130, 151, 255, 0.18); border-radius: 13px; background: linear-gradient(145deg, rgba(20, 27, 42, 0.85), rgba(11, 15, 24, 0.82)); }
+.operations-summary { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
+.operations-summary button { padding: 16px; border: 1px solid rgba(130, 151, 255, 0.18); border-radius: 13px; background: linear-gradient(145deg, rgba(20, 27, 42, 0.85), rgba(11, 15, 24, 0.82)); color: inherit; font-family: inherit; text-align: left; cursor: pointer; transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease; }
+.operations-summary button:hover { border-color: rgba(102, 215, 255, 0.42); }
+.operations-summary button.active { border-color: rgba(102, 215, 255, 0.55); background: linear-gradient(145deg, rgba(38, 89, 132, 0.74), rgba(13, 27, 45, 0.94)); }
 .operations-summary small { display: block; color: #96a3b8; font: 750 10px var(--font-mono), monospace; letter-spacing: 0.06em; text-transform: uppercase; }
 .operations-summary strong { display: block; margin-top: 9px; color: #eaf4ff; font-size: 28px; font-weight: 800; letter-spacing: -0.065em; }
 .operations-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
@@ -206,6 +208,7 @@ strong, b { font-weight: 800; }
 .operation-note { margin-top: 10px; }
 .operation-note textarea { min-height: 60px; padding: 9px; resize: vertical; line-height: 1.45; }
 .operation-note textarea::placeholder { color: #677587; }
+.operations-empty { grid-column: 1 / -1; margin: 0; padding: 18px; border: 1px dashed rgba(130, 151, 255, 0.24); border-radius: 13px; color: #98a6b8; font-size: 13px; text-align: center; }
 
 .portfolio-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .floor-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }

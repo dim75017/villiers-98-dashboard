@@ -11,9 +11,14 @@ export type PrivateAddressEntry = {
   status: string | null;
   letterReady: boolean;
 };
+export type PrivateOutreachEntry = {
+  stage: "to-send" | "sent" | "replied" | "no-response" | "acquired";
+  sentAt: string | null;
+};
 
 type HomeProps = {
   privateAddressData?: Record<string, PrivateAddressEntry>;
+  privateOutreachData?: Record<string, PrivateOutreachEntry>;
   onLock?: () => void;
 };
 
@@ -261,6 +266,7 @@ type OutreachStage = "to-send" | "sent" | "replied" | "no-response" | "acquired"
 type OutreachRecord = { stage: OutreachStage; sentAt?: string; note?: string };
 type OutreachBook = Record<string, OutreachRecord>;
 const outreachStorageKey = "villiers-98-operational-follow-up-v1";
+const outreachBootstrapKey = "villiers-98-operational-follow-up-bootstrap-v3";
 const outreachStages: Array<{ value: OutreachStage; label: string }> = [
   { value: "to-send", label: "À envoyer" },
   { value: "sent", label: "Envoyée" },
@@ -287,7 +293,7 @@ const floorRank = (floor: string | null) => {
   return level ? Number(level[1]) : 100;
 };
 
-export default function Home({ privateAddressData, onLock }: HomeProps = {}) {
+export default function Home({ privateAddressData, privateOutreachData, onLock }: HomeProps = {}) {
   const [privateAddresses, setPrivateAddresses] = useState<Record<string, PrivateAddressEntry>>(privateAddressData ?? {});
   const [privateAddressStatus, setPrivateAddressStatus] = useState<"loading" | "loaded" | "error">(privateAddressData ? "loaded" : "loading");
   const [copiedOwner, setCopiedOwner] = useState<string | null>(null);
@@ -297,6 +303,7 @@ export default function Home({ privateAddressData, onLock }: HomeProps = {}) {
   const [topView, setTopView] = useState<"owners" | "operations">("owners");
   const [outreach, setOutreach] = useState<OutreachBook>({});
   const [outreachReady, setOutreachReady] = useState(false);
+  const [outreachFilter, setOutreachFilter] = useState<OutreachStage>("to-send");
 
   useEffect(() => {
     try {
@@ -505,6 +512,27 @@ export default function Home({ privateAddressData, onLock }: HomeProps = {}) {
     const record = outreach[ownerName];
     return record && outreachStages.some((item) => item.value === record.stage) ? record : { stage: "to-send" };
   };
+  useEffect(() => {
+    if (!outreachReady || !privateOutreachData) return;
+    try {
+      if (window.localStorage.getItem(outreachBootstrapKey)) return;
+      setOutreach((current) => {
+        const next = { ...current };
+        trackedOwners.forEach((group) => {
+          const existing = next[group.ownerName];
+          const defaultRecord = privateOutreachData[group.ownerName];
+          if (!defaultRecord) return;
+          if (!existing || existing.stage === "to-send") {
+            next[group.ownerName] = { ...existing, stage: defaultRecord.stage, sentAt: existing?.sentAt ?? defaultRecord.sentAt ?? undefined };
+          }
+        });
+        return next;
+      });
+      window.localStorage.setItem(outreachBootstrapKey, "1");
+    } catch {
+      // Le suivi reste utilisable même si le navigateur refuse le stockage local.
+    }
+  }, [outreachReady, privateOutreachData, trackedOwners]);
   const updateOutreach = (ownerName: string, update: Partial<OutreachRecord>) => {
     setOutreach((current) => {
       const stored = current[ownerName];
@@ -523,6 +551,7 @@ export default function Home({ privateAddressData, onLock }: HomeProps = {}) {
     counts[item.value] = trackedOwners.filter((group) => outreachFor(group.ownerName).stage === item.value).length;
     return counts;
   }, { "to-send": 0, sent: 0, replied: 0, "no-response": 0, acquired: 0 });
+  const visibleTrackedOwners = trackedOwners.filter((group) => outreachFor(group.ownerName).stage === outreachFilter);
 
   return (
     <main className="page-shell">
@@ -554,14 +583,11 @@ export default function Home({ privateAddressData, onLock }: HomeProps = {}) {
         <section className="accessory-section"><div><span className="eyebrow">🅿️ 📦 ANNEXES SEULES</span><h3>Parkings et caves sans logement ni bureau associé</h3><p>Parkings : base de travail ≈ 35 k€ par place, recalibrée sur un loyer observé de 200 à 230 € / mois. À confirmer par dimensions, accès et comparables de vente.</p></div><div className="accessory-owner-list">{ownerGroups.filter((group) => group.primaryLotCount === 0).map((group) => <article key={group.ownerName}><div><strong>👤 {group.ownerName}</strong><small>{text(group.type)} · {number.format(group.ownerWeight)} tantièmes</small><div className="owner-badges">{addressReveal(group.ownerName, group.mailboxSeen)}{corporateReveal(group.ownerName, group.corporateProfiles)}</div></div><p>{group.accessoryCategories.map((category) => { const categoryValue = category.lots.reduce((sum, lot) => sum + (lot.valeurEstimee ?? 0), 0); const acquisitions = category.lots.map((lot) => acquisitionLabel(lot.dateAcquisition) ? `L${lot.lot} · ${acquisitionLabel(lot.dateAcquisition)}` : null).filter(Boolean); return <span key={category.name}>{categoryEmoji[category.name]} {category.lots.length} {categoryShortName[category.name].toLocaleLowerCase("fr")} : {category.lots.map((lot) => lot.lot).join(", ")}{categoryValue ? ` · ≈ ${money(categoryValue)}` : ""}{acquisitions.length ? ` · 📅 ${acquisitions.join(" · ")}` : ""}</span>; })}</p></article>)}</div></section></> : <div className="floor-grid">{floorGroups.map((group) => <article key={group.floor} className="floor-card"><header><div><span className="floor-kicker">🏢 NIVEAU</span><h3>{group.floor}</h3></div><strong>{group.lots.length} lot{group.lots.length > 1 ? "s" : ""}{group.ownedLotCount > 0 ? ` · ${group.ownedLotCount} acquis` : ""} · ≈ {money(group.value)}</strong></header><div className="floor-lots">{group.lots.map((lot) => { const surfaceDetail = surfaceEstimateForLot(lot); const ownerName = lot.proprietaire ? commonControlPortfolios[lot.proprietaire]?.name ?? lot.proprietaire : "À identifier"; const isOwned = ownedOwnerNames.has(lot.proprietaire ?? ""); const isResident = lot.proprietaire ? ownersSeenOnMailbox.has(ownerName) : null; const profiles = lot.proprietaire ? corporateProfiles[ownerName] ?? null : null; return <article key={lot.lot} className={`floor-lot${isOwned ? " owned" : ""}`}><span>{categoryEmoji[lot.categorie]} {categoryShortName[lot.categorie]}</span><b>Lot {lot.lot}</b><strong>{ownerName}</strong>{isOwned ? <div className="floor-status"><i className="owned-lot">✓ Déjà acquis</i></div> : isResident !== null && <div className="owner-badges floor-owner-badges"><i className={isResident ? "resident" : "non-resident"}>📍 {isResident ? "Résident" : "Non-résident"}</i>{corporateReveal(`floor-${lot.lot}`, profiles)}</div>}{surfaceDetail && <small>{surfaceDetail.documented ? "" : "≈ "}{number.format(surfaceDetail.value)} m²</small>}{lot.valeurEstimee && <em>≈ {money(lot.valeurEstimee)}</em>}</article>; })}</div></article>)}</div>}
       </section></> : <section className="section operations-section">
         <div className="section-title"><div><span className="eyebrow copper">🗂️ PILOTAGE DES APPROCHES</span><h2>Suivi opérationnel</h2></div><p className="operations-save">Enregistré uniquement sur cet appareil</p></div>
-        <div className="operations-summary">
-          <article><small>À envoyer</small><strong>{outreachCounts["to-send"]}</strong></article>
-          <article><small>Envoyées</small><strong>{outreachCounts.sent}</strong></article>
-          <article><small>Réponses</small><strong>{outreachCounts.replied}</strong></article>
-          <article><small>Acquisitions</small><strong>{outreachCounts.acquired}</strong></article>
+        <div className="operations-summary" role="tablist" aria-label="Étape de prospection">
+          {outreachStages.map((stage) => <button key={stage.value} type="button" role="tab" aria-selected={outreachFilter === stage.value} className={outreachFilter === stage.value ? "active" : ""} onClick={() => setOutreachFilter(stage.value)}><small>{stage.label}</small><strong>{outreachCounts[stage.value]}</strong></button>)}
         </div>
         <div className="operations-list">
-          {trackedOwners.map((group) => {
+          {visibleTrackedOwners.map((group) => {
             const record = outreachFor(group.ownerName);
             return <article key={group.ownerName} className={`operation-card stage-${record.stage}`}>
               <header><div><span>{group.mailboxSeen ? "📍 Résident" : "📍 Non-résident"}</span><h3>👤 {group.ownerName}</h3><small>Lots {group.lots.map((lot) => lot.lot).join(", ")} · {number.format(group.ownerWeight)} tantièmes</small></div><strong>{outreachStageLabel(record.stage)}</strong></header>
@@ -572,6 +598,7 @@ export default function Home({ privateAddressData, onLock }: HomeProps = {}) {
               <label className="operation-note">Note<textarea value={record.note ?? ""} placeholder="Ex. courrier déposé, réponse reçue, rappel à prévoir…" onChange={(event) => updateOutreach(group.ownerName, { note: event.target.value })} /></label>
             </article>;
           })}
+          {visibleTrackedOwners.length === 0 && <p className="operations-empty">Aucun propriétaire dans cette étape.</p>}
         </div>
       </section>}
     </main>
