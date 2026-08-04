@@ -58,27 +58,20 @@ const commonControlPortfolios: Record<string, { name: string; type: string; note
   "SCI SC 98 HV": { name: "SCI 98BV + 98HV", type: "2 SCI · même gérant", note: "2 SCI distinctes · gérant commun : Roger Berdugo" },
 };
 
-type MailboxStatus = {
-  kind: "probable" | "professional" | "ambiguous" | "unknown";
-  label: string;
-};
-
-const mailboxStatusByOwner: Record<string, MailboxStatus> = {
-  "SCI 98BV + 98HV": { kind: "professional", label: "Courrier professionnel sur site" },
-  "ARMENGAUD Marie-Hélène": { kind: "probable", label: "Occupation probable" },
-  "NIZARD Alexis / Brigitte": { kind: "probable", label: "Occupation probable" },
-  "Société VILLIERS PRESTIGE": { kind: "professional", label: "Société repérée sur une BAL" },
-  "MASSARDY Caroline": { kind: "probable", label: "Occupation probable" },
-  "SMADJA Anne": { kind: "probable", label: "Occupation confirmée" },
-  "SMADJA CORRE Karine": { kind: "probable", label: "Occupation confirmée" },
-  "DE LA PORTE DES VAUX Laura": { kind: "probable", label: "Occupation probable" },
-  "VICENS Maryline": { kind: "probable", label: "Occupation probable" },
-  "LAFOURCADE Daniel": { kind: "probable", label: "Occupation probable" },
-  "SARRAZIN / BIANCARELLI Frédéric": { kind: "probable", label: "Occupation probable" },
-  "ROUILLARD Philippe": { kind: "probable", label: "Occupation probable" },
-};
-
-const unknownMailboxStatus: MailboxStatus = { kind: "unknown", label: "Non déterminé" };
+const ownersSeenOnMailbox = new Set([
+  "SCI 98BV + 98HV",
+  "ARMENGAUD Marie-Hélène",
+  "NIZARD Alexis / Brigitte",
+  "Société VILLIERS PRESTIGE",
+  "MASSARDY Caroline",
+  "SMADJA Anne",
+  "SMADJA CORRE Karine",
+  "DE LA PORTE DES VAUX Laura",
+  "VICENS Maryline",
+  "LAFOURCADE Daniel",
+  "SARRAZIN / BIANCARELLI Frédéric",
+  "ROUILLARD Philippe",
+]);
 
 const ownerByLot = new Map<number, Owner>();
 owners.forEach((owner) => ownerLots[owner.proprietaire]?.forEach((lot) => ownerByLot.set(lot, owner)));
@@ -211,7 +204,7 @@ export default function Home() {
         estimatedPrimarySurfaceCount: primarySurfaceDetails.filter((item) => !item.documented).length,
         value: sortedLots.reduce((sum, lot) => sum + (lot.valeurEstimee ?? 0), 0),
         acquisitions,
-        mailboxStatus: mailboxStatusByOwner[ownerName] ?? unknownMailboxStatus,
+        mailboxSeen: ownersSeenOnMailbox.has(ownerName),
         sources: Array.from(new Set(sortedLots.flatMap((lot) => lot.sourcesFusion.split(" · ")))).join(" · "),
       };
     });
@@ -242,13 +235,13 @@ export default function Home() {
 
         <div className="portfolio-grid">
           {ownerGroups.filter((group) => group.primaryLotCount > 0).map((group) => <article key={group.ownerName} className="portfolio-card">
-            <header><div><span className="portfolio-type">{text(group.type)}</span><h3>👤 {group.ownerName}</h3><span className={`mailbox-status ${group.mailboxStatus.kind}`}>{group.mailboxStatus.kind === "probable" ? "🏠" : group.mailboxStatus.kind === "professional" ? "🏢" : group.mailboxStatus.kind === "ambiguous" ? "🔎" : "📭"} {group.mailboxStatus.label}</span>{group.commonControlNote && <small className="portfolio-subtitle">⚖️ {group.commonControlNote}</small>}</div><div className="portfolio-weight"><strong>{pct(group.ownerShare)}</strong><span>{number.format(group.ownerWeight)} tantièmes</span></div></header>
+            <header><div><span className="portfolio-type">{text(group.type)}</span><h3>👤 {group.ownerName}</h3><span className={`mailbox-status ${group.mailboxSeen ? "seen" : "not-seen"}`}>{group.mailboxSeen ? "Repéré sur une boîte aux lettres" : "Non repéré sur les photos"}</span>{group.commonControlNote && <small className="portfolio-subtitle">⚖️ {group.commonControlNote}</small>}</div><div className="portfolio-weight"><strong>{pct(group.ownerShare)}</strong><span>{number.format(group.ownerWeight)} tantièmes</span></div></header>
             <div className="primary-categories">{group.primaryCategories.map((category) => <section key={category.name} className={`primary-category ${category.name === "Habitations" ? "habitation" : "bureau"}`}><h4>{categoryEmoji[category.name]} {categoryShortName[category.name]}</h4><div>{category.lots.map((lot) => { const surfaceDetail = surfaceEstimateForLot(lot); const acquisition = acquisitionLabel(lot.dateAcquisition); return <span key={lot.lot} className="primary-lot"><b>Lot {lot.lot}</b><small>{text(lot.etage)}{surfaceDetail ? ` · ${surfaceDetail.documented ? "" : "≈ "}${number.format(surfaceDetail.value)} m²` : ""}</small>{acquisition && <i>📅 {acquisition}</i>}{lot.valeurEstimee && <em>≈ {money(lot.valeurEstimee)}</em>}{lot.valuationNote && <i>{lot.valuationNote}</i>}</span>; })}</div></section>)}</div>
             {group.accessoryLots.length > 0 && <div className="accessory-line">{group.accessoryCategories.map((category) => { const categoryValue = category.lots.reduce((sum, lot) => sum + (lot.valeurEstimee ?? 0), 0); const acquisitions = category.lots.map((lot) => acquisitionLabel(lot.dateAcquisition) ? `L${lot.lot} · ${acquisitionLabel(lot.dateAcquisition)}` : null).filter(Boolean); return <span key={category.name}>{categoryEmoji[category.name]} {category.lots.length} {categoryShortName[category.name].toLocaleLowerCase("fr")} · lots {category.lots.map((lot) => lot.lot).join(", ")}{categoryValue ? ` · ≈ ${money(categoryValue)}` : ""}{acquisitions.length ? ` · 📅 ${acquisitions.join(" · ")}` : ""}</span>; })}</div>}
             <footer><span>{group.estimatedPrimarySurface ? `📐 ${group.estimatedPrimarySurfaceCount ? "≈ " : ""}${number.format(group.estimatedPrimarySurface)} m²${group.documentedPrimarySurfaceCount ? ` · ${group.documentedPrimarySurfaceCount} mesuré${group.documentedPrimarySurfaceCount > 1 ? "s" : ""}` : ""}` : "📐 Surface non reconstituée"}</span><span>{group.value ? `💶 ≈ ${money(group.value)}` : ""}</span></footer>
           </article>)}</div>
 
-        <section className="accessory-section"><div><span className="eyebrow">🅿️ 📦 ANNEXES SEULES</span><h3>Parkings et caves sans logement ni bureau associé</h3><p>Ils restent recensés, sans prendre la place des portefeuilles principaux.</p></div><div className="accessory-owner-list">{ownerGroups.filter((group) => group.primaryLotCount === 0).map((group) => <article key={group.ownerName}><div><strong>👤 {group.ownerName}</strong><small>{text(group.type)} · {number.format(group.ownerWeight)} tantièmes</small><span className={`mailbox-status ${group.mailboxStatus.kind}`}>{group.mailboxStatus.kind === "probable" ? "🏠" : group.mailboxStatus.kind === "professional" ? "🏢" : group.mailboxStatus.kind === "ambiguous" ? "🔎" : "📭"} {group.mailboxStatus.label}</span></div><p>{group.accessoryCategories.map((category) => { const categoryValue = category.lots.reduce((sum, lot) => sum + (lot.valeurEstimee ?? 0), 0); const acquisitions = category.lots.map((lot) => acquisitionLabel(lot.dateAcquisition) ? `L${lot.lot} · ${acquisitionLabel(lot.dateAcquisition)}` : null).filter(Boolean); return <span key={category.name}>{categoryEmoji[category.name]} {category.lots.length} {categoryShortName[category.name].toLocaleLowerCase("fr")} : {category.lots.map((lot) => lot.lot).join(", ")}{categoryValue ? ` · ≈ ${money(categoryValue)}` : ""}{acquisitions.length ? ` · 📅 ${acquisitions.join(" · ")}` : ""}</span>; })}</p></article>)}</div></section>
+        <section className="accessory-section"><div><span className="eyebrow">🅿️ 📦 ANNEXES SEULES</span><h3>Parkings et caves sans logement ni bureau associé</h3><p>Ils restent recensés, sans prendre la place des portefeuilles principaux.</p></div><div className="accessory-owner-list">{ownerGroups.filter((group) => group.primaryLotCount === 0).map((group) => <article key={group.ownerName}><div><strong>👤 {group.ownerName}</strong><small>{text(group.type)} · {number.format(group.ownerWeight)} tantièmes</small><span className={`mailbox-status ${group.mailboxSeen ? "seen" : "not-seen"}`}>{group.mailboxSeen ? "Repéré sur une boîte aux lettres" : "Non repéré sur les photos"}</span></div><p>{group.accessoryCategories.map((category) => { const categoryValue = category.lots.reduce((sum, lot) => sum + (lot.valeurEstimee ?? 0), 0); const acquisitions = category.lots.map((lot) => acquisitionLabel(lot.dateAcquisition) ? `L${lot.lot} · ${acquisitionLabel(lot.dateAcquisition)}` : null).filter(Boolean); return <span key={category.name}>{categoryEmoji[category.name]} {category.lots.length} {categoryShortName[category.name].toLocaleLowerCase("fr")} : {category.lots.map((lot) => lot.lot).join(", ")}{categoryValue ? ` · ≈ ${money(categoryValue)}` : ""}{acquisitions.length ? ` · 📅 ${acquisitions.join(" · ")}` : ""}</span>; })}</p></article>)}</div></section>
       </section>
 
     </main>

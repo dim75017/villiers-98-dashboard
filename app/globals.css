@@ -165,10 +165,8 @@ strong, b { font-weight: 800; }
   font: 750 10px var(--font-mono), monospace;
   line-height: 1.25;
 }
-.mailbox-status.probable { border-color: rgba(102, 215, 255, 0.3); color: #c7f1ff; }
-.mailbox-status.professional { color: #d5dbff; }
-.mailbox-status.ambiguous { border-style: dashed; color: #aab5c6; }
-.mailbox-status.unknown { border-color: rgba(255, 255, 255, 0.07); background: transparent; color: #748195; }
+.mailbox-status.seen { border-color: rgba(102, 215, 255, 0.3); background: rgba(102, 215, 255, 0.07); color: #c7f1ff; }
+.mailbox-status.not-seen { border-color: rgba(255, 255, 255, 0.07); background: transparent; color: #748195; }
 .portfolio-weight { flex: 0 0 auto; min-width: 82px; padding: 9px 10px; border: 1px solid rgba(130, 151, 255, 0.24); border-radius: 10px; background: rgba(130, 151, 255, 0.1); text-align: right; }
 .portfolio-weight strong { display: block; color: #e4e8ff; font-size: 22px; font-weight: 800; line-height: 1; letter-spacing: -0.065em; }
 .portfolio-weight span { display: block; margin-top: 4px; color: #a8b5d3; font: 650 9px var(--font-mono), monospace; white-space: nowrap; }
