@@ -1,10 +1,32 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import lots from "./lots.json";
 import owners from "./owners.json";
 
 type Owner = (typeof owners)[number];
+export type PrivateAddressEntry = {
+  address: string | null;
+  source: string | null;
+  status: string | null;
+  letterReady: boolean;
+};
+
+type HomeProps = {
+  privateAddressData?: Record<string, PrivateAddressEntry>;
+  onLock?: () => void;
+};
+
+type PrivateRegistry = {
+  schemaVersion?: number;
+  privacy?: string;
+  owners?: Array<{
+    ownerKey?: string;
+    correspondenceAddress?: string | null;
+    addressSource?: string | null;
+    addressStatus?: string | null;
+  }>;
+};
 
 const ownerLots: Record<string, number[]> = {
   "SARL IMMOVILLIERS": [12, 24, 29, 30, 31, 32, 33, 34, 44, 53],
@@ -72,6 +94,9 @@ const ownersSeenOnMailbox = new Set([
   "SARRAZIN / BIANCARELLI Frédéric",
   "ROUILLARD Philippe",
 ]);
+const allowedPrivateOwnerKeys = new Set(Object.keys(ownerLots)
+  .filter((ownerName) => ownerName !== "SARL IMMOVILLIERS" && ownerName !== "SOMOGUY Dimitri")
+  .map((ownerName) => commonControlPortfolios[ownerName]?.name ?? ownerName));
 
 const ownerByLot = new Map<number, Owner>();
 owners.forEach((owner) => ownerLots[owner.proprietaire]?.forEach((lot) => ownerByLot.set(lot, owner)));
@@ -162,8 +187,85 @@ const categoryNames = ["Parkings", "Caves", "Bureaux / commerces", "Habitations"
 const primaryCategoryNames = ["Habitations", "Bureaux / commerces"];
 const categoryEmoji: Record<string, string> = { Parkings: "🅿️", Caves: "📦", "Bureaux / commerces": "💼", Habitations: "🏠" };
 const categoryShortName: Record<string, string> = { Parkings: "Parkings", Caves: "Caves", "Bureaux / commerces": "Bureaux / commerces", Habitations: "Habitations" };
+const residentLettersUrl = "https://docs.google.com/document/d/1ke65Fnhd2RdQ6z47S8dVAJqsTUPFHQRl7eHrwycGGyE/edit";
+const nonResidentLettersUrl = "https://docs.google.com/document/d/1zt78yphoeprIqHySRpM6ztnYwI_93fKSRck3a9tfW1w/edit";
 
-export default function Home() {
+export default function Home({ privateAddressData, onLock }: HomeProps = {}) {
+  const [privateAddresses, setPrivateAddresses] = useState<Record<string, PrivateAddressEntry>>(privateAddressData ?? {});
+  const [privateAddressStatus, setPrivateAddressStatus] = useState<"loading" | "loaded" | "error">(privateAddressData ? "loaded" : "loading");
+  const [copiedOwner, setCopiedOwner] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (privateAddressData) {
+      return;
+    }
+
+    let active = true;
+
+    const loadPrivateAddresses = async () => {
+      try {
+        const response = await fetch("/api/private-addresses", {
+          cache: "no-store",
+          credentials: "same-origin",
+          headers: { Accept: "application/json" },
+        });
+        if (!response.ok) throw new Error("Registre privé indisponible");
+        const payload = await response.text();
+        if (payload.length > 200_000) throw new Error("Registre privé trop volumineux");
+        const registry = JSON.parse(payload) as PrivateRegistry;
+        if (registry.schemaVersion !== 2 || registry.privacy !== "LOCAL_PRIVATE_DO_NOT_COMMIT_OR_PUBLISH" || !Array.isArray(registry.owners) || registry.owners.length > 100) {
+          throw new Error("Registre privé non reconnu");
+        }
+
+        const seenKeys = new Set<string>();
+        const entries: Record<string, PrivateAddressEntry> = {};
+        for (const owner of registry.owners) {
+          const ownerKey = typeof owner.ownerKey === "string" ? owner.ownerKey.trim() : "";
+          if (!ownerKey || !allowedPrivateOwnerKeys.has(ownerKey) || seenKeys.has(ownerKey)) throw new Error("Propriétaire privé non reconnu");
+          if (owner.correspondenceAddress !== null && owner.correspondenceAddress !== undefined && typeof owner.correspondenceAddress !== "string") throw new Error("Adresse privée invalide");
+          if (owner.addressSource !== null && owner.addressSource !== undefined && typeof owner.addressSource !== "string") throw new Error("Source privée invalide");
+          if (owner.addressStatus !== null && owner.addressStatus !== undefined && typeof owner.addressStatus !== "string") throw new Error("Statut privé invalide");
+          const address = typeof owner.correspondenceAddress === "string" ? owner.correspondenceAddress.trim() : null;
+          const source = typeof owner.addressSource === "string" ? owner.addressSource.trim() : null;
+          const status = typeof owner.addressStatus === "string" ? owner.addressStatus.trim() : null;
+          if ((address?.length ?? 0) > 300 || (source?.length ?? 0) > 200 || (status?.length ?? 0) > 200) throw new Error("Champ privé trop long");
+          seenKeys.add(ownerKey);
+          entries[ownerKey] = { address: address || null, source: source || null, status: status || null, letterReady: Boolean(address) };
+        }
+
+        if (active) {
+          setPrivateAddresses(entries);
+          setPrivateAddressStatus("loaded");
+        }
+      } catch {
+        if (active) {
+          setPrivateAddresses({});
+          setPrivateAddressStatus("error");
+        }
+      }
+    };
+
+    loadPrivateAddresses();
+    return () => { active = false; };
+  }, [privateAddressData]);
+
+  const copyPrivateAddress = async (ownerName: string, address: string) => {
+    try {
+      await navigator.clipboard.writeText(address);
+    } catch {
+      const field = document.createElement("textarea");
+      field.value = address;
+      field.style.position = "fixed";
+      field.style.opacity = "0";
+      document.body.appendChild(field);
+      field.select();
+      document.execCommand("copy");
+      field.remove();
+    }
+    setCopiedOwner(ownerName);
+    window.setTimeout(() => setCopiedOwner((current) => current === ownerName ? null : current), 1800);
+  };
+
   const ownerGroups = useMemo(() => {
     const grouped = new Map<string, MasterLot[]>();
     prospectLots.forEach((lot) => {
@@ -214,11 +316,27 @@ export default function Home() {
     });
   }, []);
 
+  const privateAddressBlock = (ownerName: string, isResident: boolean) => {
+    if (isResident || privateAddressStatus !== "loaded") return null;
+    const entry = privateAddresses[ownerName];
+    return <div className={`private-address${entry?.address ? "" : " missing"}`}>
+      <div>
+        <span>📮 Adresse de correspondance</span>
+        <strong>{entry?.address ?? "Adresse à confirmer"}</strong>
+        {entry?.address && <small>{[entry.source, entry.status].filter(Boolean).join(" · ")}</small>}
+        <em className={`letter-state ${entry?.letterReady ? "ready" : "blocked"}`}>{entry?.letterReady ? "✉️ Lettre prête" : "⏸️ Lettre en attente"}</em>
+      </div>
+      {entry?.address && <button type="button" onClick={() => copyPrivateAddress(ownerName, entry.address!)} aria-label={`Copier l’adresse de ${ownerName}`}>
+        {copiedOwner === ownerName ? "✓ Copiée" : "Copier"}
+      </button>}
+    </div>;
+  };
+
   return (
     <main className="page-shell">
       <header className="simple-header">
         <div className="identity"><span className="identity-mark">98</span><div><strong>🏛️ 98 avenue de Villiers</strong><small>ACQUISITION PROGRESSIVE · PARIS 17</small></div></div>
-        <div className="header-meta"><span>🗓️ Mise à jour · 4 août 2026</span><b>📌 Suivi opérationnel</b></div>
+        <div className="header-meta"><span>🗓️ Mise à jour · 4 août 2026</span><b>📌 Suivi opérationnel</b>{onLock && <button type="button" className="dashboard-lock" onClick={onLock}>🔒 Verrouiller</button>}</div>
       </header>
 
       <section className="hero">
@@ -231,17 +349,18 @@ export default function Home() {
       </section>
 
       <section className="section lots-section">
-        <div className="section-title"><div><span className="eyebrow copper">📊 PORTEFEUILLES À ACQUÉRIR</span><h2>Propriétaires à contacter</h2></div><strong>👥 {ownerGroups.length} propriétaires · 🧩 {prospectLots.length} lots</strong></div>
+        <div className="section-title"><div><span className="eyebrow copper">📊 PORTEFEUILLES À ACQUÉRIR</span><h2>Propriétaires à contacter</h2></div><div className="section-actions"><strong>👥 {ownerGroups.length} propriétaires · 🧩 {prospectLots.length} lots</strong><div className="mailing-links"><a href={residentLettersUrl} target="_blank" rel="noreferrer">📄 Lettres résidents</a><a href={nonResidentLettersUrl} target="_blank" rel="noreferrer">✉️ 27 lettres non-résidents</a></div><div className={`private-status ${privateAddressStatus}`}>{privateAddressStatus === "loaded" ? "🔒 27 adresses disponibles · 2 à confirmer" : privateAddressStatus === "loading" ? "🔒 Chargement des adresses…" : "⚠️ Adresses privées indisponibles"}</div></div></div>
 
         <div className="portfolio-grid">
           {ownerGroups.filter((group) => group.primaryLotCount > 0).map((group) => <article key={group.ownerName} className="portfolio-card">
             <header><div><span className="portfolio-type">{text(group.type)}</span><h3>👤 {group.ownerName}</h3><span className={`mailbox-status ${group.mailboxSeen ? "seen" : "not-seen"}`}>{group.mailboxSeen ? "Résident" : "Non-résident"}</span>{group.commonControlNote && <small className="portfolio-subtitle">⚖️ {group.commonControlNote}</small>}</div><div className="portfolio-weight"><strong>{pct(group.ownerShare)}</strong><span>{number.format(group.ownerWeight)} tantièmes</span></div></header>
+            {privateAddressBlock(group.ownerName, group.mailboxSeen)}
             <div className="primary-categories">{group.primaryCategories.map((category) => <section key={category.name} className={`primary-category ${category.name === "Habitations" ? "habitation" : "bureau"}`}><h4>{categoryEmoji[category.name]} {categoryShortName[category.name]}</h4><div>{category.lots.map((lot) => { const surfaceDetail = surfaceEstimateForLot(lot); const acquisition = acquisitionLabel(lot.dateAcquisition); return <span key={lot.lot} className="primary-lot"><b>Lot {lot.lot}</b><small>{text(lot.etage)}{surfaceDetail ? ` · ${surfaceDetail.documented ? "" : "≈ "}${number.format(surfaceDetail.value)} m²` : ""}</small>{acquisition && <i>📅 {acquisition}</i>}{lot.valeurEstimee && <em>≈ {money(lot.valeurEstimee)}</em>}{lot.valuationNote && <i>{lot.valuationNote}</i>}</span>; })}</div></section>)}</div>
             {group.accessoryLots.length > 0 && <div className="accessory-line">{group.accessoryCategories.map((category) => { const categoryValue = category.lots.reduce((sum, lot) => sum + (lot.valeurEstimee ?? 0), 0); const acquisitions = category.lots.map((lot) => acquisitionLabel(lot.dateAcquisition) ? `L${lot.lot} · ${acquisitionLabel(lot.dateAcquisition)}` : null).filter(Boolean); return <span key={category.name}>{categoryEmoji[category.name]} {category.lots.length} {categoryShortName[category.name].toLocaleLowerCase("fr")} · lots {category.lots.map((lot) => lot.lot).join(", ")}{categoryValue ? ` · ≈ ${money(categoryValue)}` : ""}{acquisitions.length ? ` · 📅 ${acquisitions.join(" · ")}` : ""}</span>; })}</div>}
             <footer><span>{group.estimatedPrimarySurface ? `📐 ${group.estimatedPrimarySurfaceCount ? "≈ " : ""}${number.format(group.estimatedPrimarySurface)} m²${group.documentedPrimarySurfaceCount ? ` · ${group.documentedPrimarySurfaceCount} mesuré${group.documentedPrimarySurfaceCount > 1 ? "s" : ""}` : ""}` : "📐 Surface non reconstituée"}</span><span>{group.value ? `💶 ≈ ${money(group.value)}` : ""}</span></footer>
           </article>)}</div>
 
-        <section className="accessory-section"><div><span className="eyebrow">🅿️ 📦 ANNEXES SEULES</span><h3>Parkings et caves sans logement ni bureau associé</h3><p>Ils restent recensés, sans prendre la place des portefeuilles principaux.</p></div><div className="accessory-owner-list">{ownerGroups.filter((group) => group.primaryLotCount === 0).map((group) => <article key={group.ownerName}><div><strong>👤 {group.ownerName}</strong><small>{text(group.type)} · {number.format(group.ownerWeight)} tantièmes</small><span className={`mailbox-status ${group.mailboxSeen ? "seen" : "not-seen"}`}>{group.mailboxSeen ? "Résident" : "Non-résident"}</span></div><p>{group.accessoryCategories.map((category) => { const categoryValue = category.lots.reduce((sum, lot) => sum + (lot.valeurEstimee ?? 0), 0); const acquisitions = category.lots.map((lot) => acquisitionLabel(lot.dateAcquisition) ? `L${lot.lot} · ${acquisitionLabel(lot.dateAcquisition)}` : null).filter(Boolean); return <span key={category.name}>{categoryEmoji[category.name]} {category.lots.length} {categoryShortName[category.name].toLocaleLowerCase("fr")} : {category.lots.map((lot) => lot.lot).join(", ")}{categoryValue ? ` · ≈ ${money(categoryValue)}` : ""}{acquisitions.length ? ` · 📅 ${acquisitions.join(" · ")}` : ""}</span>; })}</p></article>)}</div></section>
+        <section className="accessory-section"><div><span className="eyebrow">🅿️ 📦 ANNEXES SEULES</span><h3>Parkings et caves sans logement ni bureau associé</h3><p>Ils restent recensés, sans prendre la place des portefeuilles principaux.</p></div><div className="accessory-owner-list">{ownerGroups.filter((group) => group.primaryLotCount === 0).map((group) => <article key={group.ownerName}><div><strong>👤 {group.ownerName}</strong><small>{text(group.type)} · {number.format(group.ownerWeight)} tantièmes</small><span className={`mailbox-status ${group.mailboxSeen ? "seen" : "not-seen"}`}>{group.mailboxSeen ? "Résident" : "Non-résident"}</span></div>{privateAddressBlock(group.ownerName, group.mailboxSeen)}<p>{group.accessoryCategories.map((category) => { const categoryValue = category.lots.reduce((sum, lot) => sum + (lot.valeurEstimee ?? 0), 0); const acquisitions = category.lots.map((lot) => acquisitionLabel(lot.dateAcquisition) ? `L${lot.lot} · ${acquisitionLabel(lot.dateAcquisition)}` : null).filter(Boolean); return <span key={category.name}>{categoryEmoji[category.name]} {category.lots.length} {categoryShortName[category.name].toLocaleLowerCase("fr")} : {category.lots.map((lot) => lot.lot).join(", ")}{categoryValue ? ` · ≈ ${money(categoryValue)}` : ""}{acquisitions.length ? ` · 📅 ${acquisitions.join(" · ")}` : ""}</span>; })}</p></article>)}</div></section>
       </section>
 
     </main>

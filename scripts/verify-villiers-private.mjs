@@ -1,0 +1,47 @@
+import { webcrypto } from "node:crypto";
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
+
+const root = process.cwd();
+const password = (await readFile(join(root, ".private", "github-pages-password.txt"), "utf8")).trim();
+const archive = JSON.parse(await readFile(join(root, "github-pages", "public", "villiers-private.enc.json"), "utf8"));
+const context = "villiers-98-private-addresses-v2";
+const decode = (value) => Buffer.from(value, "base64");
+
+const decrypt = async (candidate) => {
+  const encoder = new TextEncoder();
+  const material = await webcrypto.subtle.importKey("raw", encoder.encode(candidate), "PBKDF2", false, ["deriveKey"]);
+  const key = await webcrypto.subtle.deriveKey(
+    { name: "PBKDF2", hash: "SHA-256", iterations: 600_000, salt: decode(archive.kdf.salt) },
+    material,
+    { name: "AES-GCM", length: 256 },
+    false,
+    ["decrypt"],
+  );
+  const plaintext = await webcrypto.subtle.decrypt(
+    { name: "AES-GCM", iv: decode(archive.cipher.iv), additionalData: encoder.encode(context), tagLength: 128 },
+    key,
+    decode(archive.cipher.data),
+  );
+  return JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(plaintext));
+};
+
+const payload = await decrypt(password);
+const owners = Object.entries(payload.owners ?? {});
+const available = owners.filter(([, entry]) => Boolean(entry.address)).length;
+if (archive.version !== 2 || payload.version !== 2 || owners.length !== 29 || available !== 27) {
+  throw new Error("Encrypted registry failed its count or version checks");
+}
+if (owners.some(([, entry]) => entry.letterReady !== Boolean(entry.address))) {
+  throw new Error("Letter readiness does not match the address registry");
+}
+
+let wrongPasswordRejected = false;
+try {
+  await decrypt(`${password}-incorrect`);
+} catch {
+  wrongPasswordRejected = true;
+}
+if (!wrongPasswordRejected) throw new Error("Wrong password was unexpectedly accepted");
+
+console.log(JSON.stringify({ protectedOwners: owners.length, addressesAvailable: available, addressesMissing: owners.length - available, wrongPasswordRejected }));

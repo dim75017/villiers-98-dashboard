@@ -13,6 +13,9 @@
     "test:monitoring": "node --test monitoring/tests/*.test.mjs",
     "monitor:villiers": "node monitoring/run.mjs",
     "monitor:villiers:baseline": "node monitoring/run.mjs --baseline",
+    "encrypt:pages-private": "node scripts/encrypt-villiers-private.mjs",
+    "verify:pages-private": "node scripts/verify-villiers-private.mjs",
+    "sanitize:public-contacts": "node scripts/sanitize-public-contact-data.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate"
   },
