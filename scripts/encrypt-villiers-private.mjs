@@ -30,7 +30,22 @@ const available = entries.filter(([, owner]) => Boolean(owner.address)).length;
 if (entries.length !== 29 || available !== 27) throw new Error("Private address counts do not match the validated registry");
 
 const encoder = new TextEncoder();
-const salt = randomBytes(16);
+let salt = randomBytes(16);
+try {
+  const existing = JSON.parse(await readFile(outputPath, "utf8"));
+  if (
+    existing?.version === 2 &&
+    existing?.kdf?.name === "PBKDF2" &&
+    existing?.kdf?.hash === "SHA-256" &&
+    existing?.kdf?.iterations === iterations &&
+    typeof existing?.kdf?.salt === "string"
+  ) {
+    const existingSalt = Buffer.from(existing.kdf.salt, "base64");
+    if (existingSalt.length === 16 && existingSalt.toString("base64") === existing.kdf.salt) salt = existingSalt;
+  }
+} catch {
+  // A missing or invalid previous archive starts a fresh trusted-device generation.
+}
 const iv = randomBytes(12);
 const keyMaterial = await webcrypto.subtle.importKey("raw", encoder.encode(password), "PBKDF2", false, ["deriveKey"]);
 const key = await webcrypto.subtle.deriveKey(

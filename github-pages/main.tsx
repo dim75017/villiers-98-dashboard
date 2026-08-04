@@ -1,4 +1,6 @@
-import { StrictMode, useState, type FormEvent } from "react";
+/// <reference types="vite/client" />
+
+import { StrictMode, useEffect, useState, type FormEvent } from "react";
 import { createRoot } from "react-dom/client";
 import Home, { type PrivateAddressEntry } from "../app/page";
 import "../app/globals.css";
@@ -23,12 +25,37 @@ type DecryptedPayload = {
   owners?: unknown;
 };
 
+type ValidatedArchive = {
+  salt: Uint8Array<ArrayBuffer>;
+  saltEncoded: string;
+  iv: Uint8Array<ArrayBuffer>;
+  ciphertext: Uint8Array<ArrayBuffer>;
+};
+
+type TrustedDeviceRecord = {
+  id: string;
+  version: 1;
+  archiveVersion: 2;
+  iterations: number;
+  salt: string;
+  key: CryptoKey;
+  trustedAt: string;
+};
+
 const CONTEXT = "villiers-98-private-addresses-v2";
 const ITERATIONS = 600_000;
+const TRUSTED_DEVICE_DB = "villiers-98-trusted-device-v1";
+const TRUSTED_DEVICE_STORE = "credentials";
+const TRUSTED_DEVICE_ID = "dashboard-key";
 
-const decodeBase64 = (value: string) => Uint8Array.from(atob(value), (character) => character.charCodeAt(0));
+const decodeBase64 = (value: string): Uint8Array<ArrayBuffer> => {
+  const decoded = atob(value);
+  const bytes = new Uint8Array(decoded.length);
+  for (let index = 0; index < decoded.length; index += 1) bytes[index] = decoded.charCodeAt(index);
+  return bytes;
+};
 
-const decryptAddresses = async (password: string): Promise<Record<string, PrivateAddressEntry>> => {
+const fetchArchive = async (): Promise<ValidatedArchive> => {
   const response = await fetch(`${import.meta.env.BASE_URL}villiers-private.enc.json`, { cache: "no-store" });
   if (!response.ok) throw new Error("archive");
   const archiveText = await response.text();
@@ -50,9 +77,13 @@ const decryptAddresses = async (password: string): Promise<Record<string, Privat
   const ciphertext = decodeBase64(encrypted.cipher.data);
   if (salt.length !== 16 || iv.length !== 12 || ciphertext.length < 17 || ciphertext.length > 150_000) throw new Error("archive");
 
+  return { salt, saltEncoded: encrypted.kdf.salt, iv, ciphertext };
+};
+
+const deriveArchiveKey = async (password: string, salt: Uint8Array<ArrayBuffer>): Promise<CryptoKey> => {
   const encoder = new TextEncoder();
   const keyMaterial = await crypto.subtle.importKey("raw", encoder.encode(password), "PBKDF2", false, ["deriveKey"]);
-  const key = await crypto.subtle.deriveKey(
+  return crypto.subtle.deriveKey(
     {
       name: "PBKDF2",
       hash: "SHA-256",
@@ -64,15 +95,19 @@ const decryptAddresses = async (password: string): Promise<Record<string, Privat
     false,
     ["decrypt"],
   );
+};
+
+const decryptArchive = async (archive: ValidatedArchive, key: CryptoKey): Promise<Record<string, PrivateAddressEntry>> => {
+  const encoder = new TextEncoder();
   const plaintext = await crypto.subtle.decrypt(
     {
       name: "AES-GCM",
-      iv,
+      iv: archive.iv,
       additionalData: encoder.encode(CONTEXT),
       tagLength: 128,
     },
     key,
-    ciphertext,
+    archive.ciphertext,
   );
   const decrypted = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(plaintext)) as DecryptedPayload;
   if (decrypted.version !== 2 || !decrypted.owners || typeof decrypted.owners !== "object" || Array.isArray(decrypted.owners)) throw new Error("archive");
@@ -93,36 +128,174 @@ const decryptAddresses = async (password: string): Promise<Record<string, Privat
   return normalized;
 };
 
+const openTrustedDeviceDatabase = () => new Promise<IDBDatabase>((resolve, reject) => {
+  if (!globalThis.indexedDB) {
+    reject(new Error("trusted-device"));
+    return;
+  }
+  const request = indexedDB.open(TRUSTED_DEVICE_DB, 1);
+  request.onupgradeneeded = () => {
+    const database = request.result;
+    if (!database.objectStoreNames.contains(TRUSTED_DEVICE_STORE)) {
+      database.createObjectStore(TRUSTED_DEVICE_STORE, { keyPath: "id" });
+    }
+  };
+  request.onsuccess = () => resolve(request.result);
+  request.onerror = () => reject(request.error ?? new Error("trusted-device"));
+  request.onblocked = () => reject(new Error("trusted-device"));
+});
+
+const readTrustedDevice = async (): Promise<TrustedDeviceRecord | null> => {
+  const database = await openTrustedDeviceDatabase();
+  try {
+    return await new Promise<TrustedDeviceRecord | null>((resolve, reject) => {
+      const transaction = database.transaction(TRUSTED_DEVICE_STORE, "readonly");
+      const request = transaction.objectStore(TRUSTED_DEVICE_STORE).get(TRUSTED_DEVICE_ID);
+      request.onsuccess = () => resolve((request.result as TrustedDeviceRecord | undefined) ?? null);
+      request.onerror = () => reject(request.error ?? new Error("trusted-device"));
+      transaction.onabort = () => reject(transaction.error ?? new Error("trusted-device"));
+    });
+  } finally {
+    database.close();
+  }
+};
+
+const rememberTrustedDevice = async (archive: ValidatedArchive, key: CryptoKey) => {
+  const database = await openTrustedDeviceDatabase();
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const transaction = database.transaction(TRUSTED_DEVICE_STORE, "readwrite");
+      transaction.objectStore(TRUSTED_DEVICE_STORE).put({
+        id: TRUSTED_DEVICE_ID,
+        version: 1,
+        archiveVersion: 2,
+        iterations: ITERATIONS,
+        salt: archive.saltEncoded,
+        key,
+        trustedAt: new Date().toISOString(),
+      } satisfies TrustedDeviceRecord);
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error ?? new Error("trusted-device"));
+      transaction.onabort = () => reject(transaction.error ?? new Error("trusted-device"));
+    });
+  } finally {
+    database.close();
+  }
+};
+
+const forgetTrustedDevice = async () => {
+  const database = await openTrustedDeviceDatabase();
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const transaction = database.transaction(TRUSTED_DEVICE_STORE, "readwrite");
+      transaction.objectStore(TRUSTED_DEVICE_STORE).delete(TRUSTED_DEVICE_ID);
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error ?? new Error("trusted-device"));
+      transaction.onabort = () => reject(transaction.error ?? new Error("trusted-device"));
+    });
+  } finally {
+    database.close();
+  }
+};
+
+const isUsableTrustedDevice = (record: TrustedDeviceRecord | null, archive: ValidatedArchive): record is TrustedDeviceRecord => Boolean(
+  record &&
+  record.version === 1 &&
+  record.archiveVersion === 2 &&
+  record.iterations === ITERATIONS &&
+  record.salt === archive.saltEncoded &&
+  record.key &&
+  record.key.type === "secret" &&
+  record.key.extractable === false &&
+  record.key.algorithm.name === "AES-GCM" &&
+  record.key.usages.includes("decrypt"),
+);
+
 function ProtectedDashboard() {
   const [password, setPassword] = useState("");
   const [privateAddresses, setPrivateAddresses] = useState<Record<string, PrivateAddressEntry> | null>(null);
+  const [isRestoring, setIsRestoring] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    const restoreTrustedDevice = async () => {
+      try {
+        const record = await readTrustedDevice();
+        if (!record) return;
+        const archive = await fetchArchive();
+        if (!isUsableTrustedDevice(record, archive)) {
+          await forgetTrustedDevice();
+          return;
+        }
+        try {
+          const addresses = await decryptArchive(archive, record.key);
+          if (active) setPrivateAddresses(addresses);
+        } catch {
+          await forgetTrustedDevice();
+        }
+      } catch {
+        // IndexedDB can be unavailable in hardened/private browser modes.
+      } finally {
+        if (active) setIsRestoring(false);
+      }
+    };
+    void restoreTrustedDevice();
+    return () => { active = false; };
+  }, []);
 
   const unlock = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!password || isLoading) return;
     setIsLoading(true);
     setError("");
+    let addresses: Record<string, PrivateAddressEntry>;
+    let archive: ValidatedArchive;
+    let key: CryptoKey;
     try {
-      const addresses = await decryptAddresses(password);
+      archive = await fetchArchive();
+      key = await deriveArchiveKey(password, archive.salt);
+      addresses = await decryptArchive(archive, key);
+    } catch {
+      setError("Mot de passe incorrect.");
+      setIsLoading(false);
+      return;
+    }
+    try {
+      await rememberTrustedDevice(archive, key);
+      void navigator.storage?.persist?.().catch(() => undefined);
       setPrivateAddresses(addresses);
       setPassword("");
     } catch {
-      setError("Mot de passe incorrect.");
+      setError("Mot de passe correct, mais ce navigateur bloque la mémorisation de l’appareil. Autorisez le stockage du site puis réessayez.");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const lock = () => {
-    setPrivateAddresses(null);
-    setPassword("");
-    setError("");
-    window.scrollTo({ top: 0, behavior: "instant" });
+  const forgetDevice = async () => {
+    try {
+      await forgetTrustedDevice();
+      setPrivateAddresses(null);
+      setPassword("");
+      setError("");
+      window.scrollTo({ top: 0, behavior: "instant" });
+    } catch {
+      window.alert("Impossible d’oublier cet appareil pour le moment. Les données de confiance n’ont pas été supprimées.");
+    }
   };
 
-  if (privateAddresses) return <Home privateAddressData={privateAddresses} onLock={lock} />;
+  if (privateAddresses) return <Home privateAddressData={privateAddresses} onLock={forgetDevice} />;
+
+  if (isRestoring) return <main className="unlock-page">
+    <section className="unlock-card" aria-live="polite">
+      <div className="unlock-mark">98</div>
+      <small>💻 Appareil de confiance</small>
+      <h1>98 avenue de Villiers</h1>
+      <p>Reconnaissance de cet appareil…</p>
+    </section>
+  </main>;
 
   return <main className="unlock-page">
     <section className="unlock-card" aria-labelledby="private-title">
@@ -136,7 +309,7 @@ function ProtectedDashboard() {
         <button type="submit" disabled={isLoading}>{isLoading ? "Déverrouillage…" : "Ouvrir le dashboard"}</button>
       </form>
       <p className="unlock-error" role="alert" aria-live="polite">{error}</p>
-      <p className="unlock-footnote">Les adresses restent chiffrées tant que le mot de passe n’est pas saisi.</p>
+      <p className="unlock-footnote">Après cette première ouverture, ce navigateur sera reconnu sans limite de durée. Le mot de passe n’est jamais enregistré en clair.</p>
     </section>
   </main>;
 }

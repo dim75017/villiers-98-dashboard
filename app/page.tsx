@@ -336,7 +336,7 @@ export default function Home({ privateAddressData, onLock }: HomeProps = {}) {
     <main className="page-shell">
       <header className="simple-header">
         <div className="identity"><span className="identity-mark">98</span><div><strong>🏛️ 98 avenue de Villiers</strong><small>ACQUISITION PROGRESSIVE · PARIS 17</small></div></div>
-        <div className="header-meta"><span>🗓️ Mise à jour · 4 août 2026</span><b>📌 Suivi opérationnel</b>{onLock && <button type="button" className="dashboard-lock" onClick={onLock}>🔒 Verrouiller</button>}</div>
+        <div className="header-meta"><span>🗓️ Mise à jour · 4 août 2026</span><b>📌 Suivi opérationnel</b>{onLock && <button type="button" className="dashboard-lock" onClick={onLock}>💻 Oublier cet appareil</button>}</div>
       </header>
 
       <section className="hero">
