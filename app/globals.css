@@ -212,7 +212,9 @@ strong, b { font-weight: 800; }
 .portfolio-type { color: #93a1b3; font: 700 10px var(--font-mono), monospace; letter-spacing: 0.075em; text-transform: uppercase; }
 .portfolio-card h3 { margin: 6px 0 0; color: #fff; font-size: 20px; font-weight: 800; line-height: 1.16; letter-spacing: -0.045em; overflow-wrap: anywhere; }
 .portfolio-subtitle { display: block; margin-top: 6px; color: #99d3e7; font-size: 10px; font-weight: 650; line-height: 1.4; }
-.corporate-reveal { position: relative; width: fit-content; margin-top: 8px; }
+.owner-badges { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.floor-owner-badges { margin-top: 2px; }
+.corporate-reveal { position: relative; width: fit-content; }
 .corporate-button { padding: 5px 8px; border: 1px solid rgba(102, 215, 255, 0.25); border-radius: 8px; background: rgba(102, 215, 255, 0.065); color: #c8f0ff; cursor: pointer; font-size: 10px; font-weight: 800; line-height: 1.35; text-align: left; }
 .corporate-button:hover { border-color: rgba(102, 215, 255, 0.48); background: rgba(102, 215, 255, 0.12); }
 .corporate-popover { position: absolute; z-index: 9; top: calc(100% + 7px); left: 0; display: grid; gap: 7px; min-width: 285px; max-width: min(410px, calc(100vw - 34px)); padding: 10px; border: 1px solid rgba(102, 215, 255, 0.3); border-radius: 10px; background: #15202c; box-shadow: 0 14px 28px rgba(0, 0, 0, 0.38); }
@@ -239,7 +241,7 @@ strong, b { font-weight: 800; }
 .mailbox-status:focus-visible { outline: 2px solid #8bc7ff; outline-offset: 2px; }
 .mailbox-status.seen { border-color: rgba(74, 222, 128, 0.38); background: rgba(34, 197, 94, 0.11); color: #a7f3c2; }
 .mailbox-status.not-seen { border-color: rgba(248, 113, 113, 0.38); background: rgba(239, 68, 68, 0.11); color: #ffb4b4; }
-.address-reveal { position: relative; width: fit-content; margin-top: 7px; }
+.address-reveal { position: relative; width: fit-content; }
 .address-popover { position: absolute; z-index: 8; top: calc(100% + 7px); left: 0; display: flex; align-items: center; gap: 9px; min-width: 235px; max-width: min(330px, calc(100vw - 34px)); padding: 8px 9px; border: 1px solid rgba(102, 215, 255, 0.28); border-radius: 9px; background: #15202c; box-shadow: 0 12px 24px rgba(0, 0, 0, 0.34); }
 .address-popover span { min-width: 0; color: #e6f7ff; font-size: 11px; font-weight: 750; line-height: 1.35; overflow-wrap: anywhere; }
 .address-popover button { flex: 0 0 auto; padding: 6px 8px; border: 1px solid rgba(130, 151, 255, 0.3); border-radius: 7px; background: rgba(130, 151, 255, 0.1); color: #d7ddff; cursor: pointer; font-size: 10px; font-weight: 800; }
