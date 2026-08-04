@@ -76,8 +76,73 @@ const ownerLots: Record<string, number[]> = {
 };
 
 const commonControlPortfolios: Record<string, { name: string; type: string; note: string }> = {
-  "SCI SC 98 BV": { name: "SCI 98BV + 98HV", type: "2 SCI · même gérant", note: "2 SCI distinctes · gérant commun : Roger Berdugo" },
-  "SCI SC 98 HV": { name: "SCI 98BV + 98HV", type: "2 SCI · même gérant", note: "2 SCI distinctes · gérant commun : Roger Berdugo" },
+  "SCI SC 98 BV": { name: "SCI 98BV + 98HV", type: "2 SCI liées", note: "2 SCI distinctes · 98BV : FGI depuis 05/2026 · 98HV : Roger Berdugo" },
+  "SCI SC 98 HV": { name: "SCI 98BV + 98HV", type: "2 SCI liées", note: "2 SCI distinctes · 98BV : FGI depuis 05/2026 · 98HV : Roger Berdugo" },
+};
+
+type CorporateProfile = {
+  entity: string;
+  siren?: string;
+  current?: string;
+  people?: string;
+  caveat?: string;
+  sourceLabel: string;
+  sourceUrl: string;
+};
+
+// Only names that are explicitly disclosed in public RCS/BODACC material are shown here.
+// Beneficial-owner registers and full, current cap tables are not publicly available in all cases.
+const corporateProfiles: Record<string, CorporateProfile[]> = {
+  "SCI 98BV + 98HV": [
+    {
+      entity: "SCI 98BV",
+      siren: "520 373 945",
+      current: "Gérant actuel : FIDUCIA GESTION ET INFORMATIQUE (FGI), depuis le 01/05/2026",
+      people: "Présidente de FGI : Linda Berdugo · ancien gérant : Roger Berdugo · associé personne physique publié : Gilbert Metoudi",
+      caveat: "Les associés actuels complets ne sont pas publiquement accessibles.",
+      sourceLabel: "RCS / annonce légale 2026",
+      sourceUrl: "https://www.pappers.fr/entreprise/98bv-520373945",
+    },
+    {
+      entity: "SCI 98HV",
+      siren: "520 367 608",
+      current: "Gérant et associé : Roger Berdugo",
+      people: "Associé personne physique publié : Gilbert Metoudi",
+      caveat: "Les associés actuels complets ne sont pas publiquement accessibles.",
+      sourceLabel: "RCS / BODACC",
+      sourceUrl: "https://www.pappers.fr/entreprise/98hv-520367608",
+    },
+  ],
+  "Société VILLIERS PRESTIGE": [
+    {
+      entity: "SCI VILLIERS PRESTIGE",
+      siren: "931 591 226",
+      current: "Gérants et associés : Richard Demirci · Valérie Demirci",
+      people: "Autre associé public identifié : Daniel Demirci",
+      caveat: "La liste intégrale des associés / bénéficiaires effectifs n'est pas publique.",
+      sourceLabel: "RCS / annonces légales",
+      sourceUrl: "https://entreprises.lefigaro.fr/villiers-prestige-75/entreprise-931591226",
+    },
+  ],
+  "SCI 13ÈME SOUS SOL": [
+    {
+      entity: "SCI 13ème Sous Sol",
+      siren: "519 413 561",
+      current: "Historique de constitution publié : gérant non associé Christophe Poujeol",
+      people: "Associé publié : Alain N'Dong · CPH Christophe Poujeol Holding",
+      caveat: "Rôles actuels à confirmer : l'annonce publique disponible porte sur la constitution.",
+      sourceLabel: "BODACC de constitution",
+      sourceUrl: "https://entreprises.lefigaro.fr/sol-sci-13-eme-sous-75/entreprise-519413561",
+    },
+  ],
+  "SCI SODAIM": [
+    {
+      entity: "SCI SODAIM",
+      caveat: "SIREN et dirigeants non rapprochés avec certitude : homonymes possibles, aucun nom n'est affiché sans preuve.",
+      sourceLabel: "À consolider",
+      sourceUrl: "https://annuaire-entreprises.data.gouv.fr/",
+    },
+  ],
 };
 
 const ownersSeenOnMailbox = new Set([
@@ -292,6 +357,7 @@ export default function Home({ privateAddressData, onLock }: HomeProps = {}) {
         ownerName,
         type: commonControl?.type ?? first.type,
         commonControlNote: commonControl?.note ?? null,
+        corporateProfiles: corporateProfiles[ownerName] ?? null,
         address: first.adresse,
         ownerWeight: legalOwners.length > 1 ? sortedLots.reduce((sum, lot) => sum + lot.tantiemes, 0) : first.tantiemesProprietaire ?? 0,
         ownerShare: legalOwners.length > 1 ? sortedLots.reduce((sum, lot) => sum + lot.tantiemes, 0) / 10000 : first.partProprietaire,
@@ -362,13 +428,13 @@ export default function Home({ privateAddressData, onLock }: HomeProps = {}) {
 
         <div className="portfolio-grid">
           {ownerGroups.filter((group) => group.primaryLotCount > 0).map((group) => <article key={group.ownerName} className="portfolio-card">
-            <header><div><span className="portfolio-type">{text(group.type)}</span><h3>👤 {group.ownerName}</h3>{addressReveal(group.ownerName, group.mailboxSeen)}{group.commonControlNote && <small className="portfolio-subtitle">⚖️ {group.commonControlNote}</small>}</div><div className="portfolio-weight"><strong>{pct(group.ownerShare)}</strong><span>{number.format(group.ownerWeight)} tantièmes</span></div></header>
+            <header><div><span className="portfolio-type">{text(group.type)}</span><h3>👤 {group.ownerName}</h3>{addressReveal(group.ownerName, group.mailboxSeen)}{group.commonControlNote && <small className="portfolio-subtitle">⚖️ {group.commonControlNote}</small>}{group.corporateProfiles && <div className="corporate-profiles">{group.corporateProfiles.map((profile) => <div key={profile.entity} className="corporate-profile"><strong>🏢 {profile.entity}{profile.siren ? ` · SIREN ${profile.siren}` : ""}</strong>{profile.current && <span>{profile.current}</span>}{profile.people && <span>{profile.people}</span>}{profile.caveat && <small>{profile.caveat}</small>}<a href={profile.sourceUrl} target="_blank" rel="noreferrer">↗ {profile.sourceLabel}</a></div>)}</div>}</div><div className="portfolio-weight"><strong>{pct(group.ownerShare)}</strong><span>{number.format(group.ownerWeight)} tantièmes</span></div></header>
             <div className="primary-categories">{group.primaryCategories.map((category) => <section key={category.name} className={`primary-category ${category.name === "Habitations" ? "habitation" : "bureau"}`}><h4>{categoryEmoji[category.name]} {categoryShortName[category.name]}</h4><div>{category.lots.map((lot) => { const surfaceDetail = surfaceEstimateForLot(lot); const acquisition = acquisitionLabel(lot.dateAcquisition); return <span key={lot.lot} className="primary-lot"><b>Lot {lot.lot}</b><small>{text(lot.etage)}{surfaceDetail ? ` · ${surfaceDetail.documented ? "" : "≈ "}${number.format(surfaceDetail.value)} m²` : ""}</small>{acquisition && <i>📅 {acquisition}</i>}{lot.valeurEstimee && <em>≈ {money(lot.valeurEstimee)}</em>}{lot.valuationNote && <i>{lot.valuationNote}</i>}</span>; })}</div></section>)}</div>
             {group.accessoryLots.length > 0 && <div className="accessory-line">{group.accessoryCategories.map((category) => { const categoryValue = category.lots.reduce((sum, lot) => sum + (lot.valeurEstimee ?? 0), 0); const acquisitions = category.lots.map((lot) => acquisitionLabel(lot.dateAcquisition) ? `L${lot.lot} · ${acquisitionLabel(lot.dateAcquisition)}` : null).filter(Boolean); return <span key={category.name}>{categoryEmoji[category.name]} {category.lots.length} {categoryShortName[category.name].toLocaleLowerCase("fr")} · lots {category.lots.map((lot) => lot.lot).join(", ")}{categoryValue ? ` · ≈ ${money(categoryValue)}` : ""}{acquisitions.length ? ` · 📅 ${acquisitions.join(" · ")}` : ""}</span>; })}</div>}
             <footer><span>{group.estimatedPrimarySurface ? `📐 ${group.estimatedPrimarySurfaceCount ? "≈ " : ""}${number.format(group.estimatedPrimarySurface)} m²${group.documentedPrimarySurfaceCount ? ` · ${group.documentedPrimarySurfaceCount} mesuré${group.documentedPrimarySurfaceCount > 1 ? "s" : ""}` : ""}` : "📐 Surface non reconstituée"}</span><span>{group.value ? `💶 ≈ ${money(group.value)}` : ""}</span></footer>
           </article>)}</div>
 
-        <section className="accessory-section"><div><span className="eyebrow">🅿️ 📦 ANNEXES SEULES</span><h3>Parkings et caves sans logement ni bureau associé</h3><p>Ils restent recensés, sans prendre la place des portefeuilles principaux.</p></div><div className="accessory-owner-list">{ownerGroups.filter((group) => group.primaryLotCount === 0).map((group) => <article key={group.ownerName}><div><strong>👤 {group.ownerName}</strong><small>{text(group.type)} · {number.format(group.ownerWeight)} tantièmes</small>{addressReveal(group.ownerName, group.mailboxSeen)}</div><p>{group.accessoryCategories.map((category) => { const categoryValue = category.lots.reduce((sum, lot) => sum + (lot.valeurEstimee ?? 0), 0); const acquisitions = category.lots.map((lot) => acquisitionLabel(lot.dateAcquisition) ? `L${lot.lot} · ${acquisitionLabel(lot.dateAcquisition)}` : null).filter(Boolean); return <span key={category.name}>{categoryEmoji[category.name]} {category.lots.length} {categoryShortName[category.name].toLocaleLowerCase("fr")} : {category.lots.map((lot) => lot.lot).join(", ")}{categoryValue ? ` · ≈ ${money(categoryValue)}` : ""}{acquisitions.length ? ` · 📅 ${acquisitions.join(" · ")}` : ""}</span>; })}</p></article>)}</div></section>
+        <section className="accessory-section"><div><span className="eyebrow">🅿️ 📦 ANNEXES SEULES</span><h3>Parkings et caves sans logement ni bureau associé</h3><p>Ils restent recensés, sans prendre la place des portefeuilles principaux.</p></div><div className="accessory-owner-list">{ownerGroups.filter((group) => group.primaryLotCount === 0).map((group) => <article key={group.ownerName}><div><strong>👤 {group.ownerName}</strong><small>{text(group.type)} · {number.format(group.ownerWeight)} tantièmes</small>{addressReveal(group.ownerName, group.mailboxSeen)}{group.corporateProfiles && <div className="corporate-profiles compact">{group.corporateProfiles.map((profile) => <div key={profile.entity} className="corporate-profile"><strong>🏢 {profile.entity}{profile.siren ? ` · SIREN ${profile.siren}` : ""}</strong>{profile.current && <span>{profile.current}</span>}{profile.people && <span>{profile.people}</span>}{profile.caveat && <small>{profile.caveat}</small>}<a href={profile.sourceUrl} target="_blank" rel="noreferrer">↗ {profile.sourceLabel}</a></div>)}</div>}</div><p>{group.accessoryCategories.map((category) => { const categoryValue = category.lots.reduce((sum, lot) => sum + (lot.valeurEstimee ?? 0), 0); const acquisitions = category.lots.map((lot) => acquisitionLabel(lot.dateAcquisition) ? `L${lot.lot} · ${acquisitionLabel(lot.dateAcquisition)}` : null).filter(Boolean); return <span key={category.name}>{categoryEmoji[category.name]} {category.lots.length} {categoryShortName[category.name].toLocaleLowerCase("fr")} : {category.lots.map((lot) => lot.lot).join(", ")}{categoryValue ? ` · ≈ ${money(categoryValue)}` : ""}{acquisitions.length ? ` · 📅 ${acquisitions.join(" · ")}` : ""}</span>; })}</p></article>)}</div></section>
       </section>
 
     </main>
