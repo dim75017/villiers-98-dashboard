@@ -267,6 +267,9 @@ type OutreachRecord = { stage: OutreachStage; sentAt?: string; note?: string };
 type OutreachBook = Record<string, OutreachRecord>;
 const outreachStorageKey = "villiers-98-operational-follow-up-v1";
 const outreachBootstrapKey = "villiers-98-operational-follow-up-bootstrap-v3";
+const dashboardViewStorageKey = "villiers-98-active-view-v1";
+const dashboardFloorViewStorageKey = "villiers-98-floor-view-v1";
+const outreachFilterStorageKey = "villiers-98-outreach-filter-v1";
 const outreachStages: Array<{ value: OutreachStage; label: string }> = [
   { value: "to-send", label: "À envoyer" },
   { value: "sent", label: "Envoyée" },
@@ -276,6 +279,13 @@ const outreachStages: Array<{ value: OutreachStage; label: string }> = [
 ];
 const outreachStageLabel = (stage: OutreachStage) => outreachStages.find((item) => item.value === stage)?.label ?? "À envoyer";
 const localDate = () => new Date().toLocaleDateString("en-CA");
+const savedTopView = (): "owners" | "operations" => typeof window !== "undefined" && window.localStorage.getItem(dashboardViewStorageKey) === "operations" ? "operations" : "owners";
+const savedFloorView = (): "owner" | "floor" => typeof window !== "undefined" && window.localStorage.getItem(dashboardFloorViewStorageKey) === "floor" ? "floor" : "owner";
+const savedOutreachFilter = (): OutreachStage => {
+  if (typeof window === "undefined") return "to-send";
+  const stage = window.localStorage.getItem(outreachFilterStorageKey);
+  return outreachStages.some((item) => item.value === stage) ? stage as OutreachStage : "to-send";
+};
 
 type MasterLot = (typeof masterLots)[number];
 const categoryNames = ["Parkings", "Caves", "Bureaux / commerces", "Habitations"];
@@ -299,11 +309,11 @@ export default function Home({ privateAddressData, privateOutreachData, onLock }
   const [copiedOwner, setCopiedOwner] = useState<string | null>(null);
   const [revealedAddressOwner, setRevealedAddressOwner] = useState<string | null>(null);
   const [revealedCorporateOwner, setRevealedCorporateOwner] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<"owner" | "floor">("owner");
-  const [topView, setTopView] = useState<"owners" | "operations">("owners");
+  const [viewMode, setViewMode] = useState<"owner" | "floor">(savedFloorView);
+  const [topView, setTopView] = useState<"owners" | "operations">(savedTopView);
   const [outreach, setOutreach] = useState<OutreachBook>({});
   const [outreachReady, setOutreachReady] = useState(false);
-  const [outreachFilter, setOutreachFilter] = useState<OutreachStage>("to-send");
+  const [outreachFilter, setOutreachFilter] = useState<OutreachStage>(savedOutreachFilter);
 
   useEffect(() => {
     try {
@@ -327,6 +337,16 @@ export default function Home({ privateAddressData, privateOutreachData, onLock }
       // Le navigateur peut bloquer l'écriture en navigation privée stricte.
     }
   }, [outreach, outreachReady]);
+
+  useEffect(() => {
+    try { window.localStorage.setItem(dashboardViewStorageKey, topView); } catch { /* sans impact sur la vue */ }
+  }, [topView]);
+  useEffect(() => {
+    try { window.localStorage.setItem(dashboardFloorViewStorageKey, viewMode); } catch { /* sans impact sur la vue */ }
+  }, [viewMode]);
+  useEffect(() => {
+    try { window.localStorage.setItem(outreachFilterStorageKey, outreachFilter); } catch { /* sans impact sur le suivi */ }
+  }, [outreachFilter]);
 
   useEffect(() => {
     if (privateAddressData) {
@@ -510,7 +530,11 @@ export default function Home({ privateAddressData, privateOutreachData, onLock }
   const trackedOwners = ownerGroups.filter((group) => group.ownerName !== "À identifier");
   const outreachFor = (ownerName: string): OutreachRecord => {
     const record = outreach[ownerName];
-    return record && outreachStages.some((item) => item.value === record.stage) ? record : { stage: "to-send" };
+    if (record && outreachStages.some((item) => item.value === record.stage)) return record;
+    const privateDefault = privateOutreachData?.[ownerName];
+    return privateDefault && outreachStages.some((item) => item.value === privateDefault.stage)
+      ? { stage: privateDefault.stage, sentAt: privateDefault.sentAt ?? undefined }
+      : { stage: "to-send" };
   };
   useEffect(() => {
     if (!outreachReady || !privateOutreachData) return;
