@@ -279,7 +279,10 @@ const outreachStages: Array<{ value: OutreachStage; label: string }> = [
 ];
 const outreachStageLabel = (stage: OutreachStage) => outreachStages.find((item) => item.value === stage)?.label ?? "À envoyer";
 const localDate = () => new Date().toLocaleDateString("en-CA");
-const savedTopView = (): "owners" | "operations" => typeof window !== "undefined" && window.localStorage.getItem(dashboardViewStorageKey) === "operations" ? "operations" : "owners";
+const savedTopView = (): "owners" | "operations" => {
+  if (typeof window === "undefined") return "owners";
+  return window.location.hash === "#suivi" || window.localStorage.getItem(dashboardViewStorageKey) === "operations" ? "operations" : "owners";
+};
 const savedFloorView = (): "owner" | "floor" => typeof window !== "undefined" && window.localStorage.getItem(dashboardFloorViewStorageKey) === "floor" ? "floor" : "owner";
 const savedOutreachFilter = (): OutreachStage => {
   if (typeof window === "undefined") return "to-send";
@@ -339,7 +342,11 @@ export default function Home({ privateAddressData, privateOutreachData, onLock }
   }, [outreach, outreachReady]);
 
   useEffect(() => {
-    try { window.localStorage.setItem(dashboardViewStorageKey, topView); } catch { /* sans impact sur la vue */ }
+    try {
+      window.localStorage.setItem(dashboardViewStorageKey, topView);
+      const hash = topView === "operations" ? "#suivi" : "#proprietaires";
+      if (window.location.hash !== hash) window.history.replaceState(null, "", hash);
+    } catch { /* sans impact sur la vue */ }
   }, [topView]);
   useEffect(() => {
     try { window.localStorage.setItem(dashboardFloorViewStorageKey, viewMode); } catch { /* sans impact sur la vue */ }
@@ -576,12 +583,19 @@ export default function Home({ privateAddressData, privateOutreachData, onLock }
     return counts;
   }, { "to-send": 0, sent: 0, replied: 0, "no-response": 0, acquired: 0 });
   const visibleTrackedOwners = trackedOwners.filter((group) => outreachFor(group.ownerName).stage === outreachFilter);
+  const changeTopView = (nextView: "owners" | "operations") => {
+    setTopView(nextView);
+    try {
+      window.localStorage.setItem(dashboardViewStorageKey, nextView);
+      window.history.replaceState(null, "", nextView === "operations" ? "#suivi" : "#proprietaires");
+    } catch { /* la navigation reste utilisable */ }
+  };
 
   return (
     <main className="page-shell">
       <header className="simple-header">
         <div className="identity"><div><strong>🏛️ 98 avenue de Villiers</strong><small>ACQUISITION PROGRESSIVE · PARIS 17</small></div></div>
-        <div className="header-meta"><nav className="dashboard-nav" aria-label="Vue principale"><button type="button" className={topView === "owners" ? "active" : ""} aria-pressed={topView === "owners"} onClick={() => setTopView("owners")}>👥 Liste des propriétaires</button><button type="button" className={topView === "operations" ? "active" : ""} aria-pressed={topView === "operations"} onClick={() => setTopView("operations")}>🗂️ Suivi opérationnel</button></nav></div>
+        <div className="header-meta"><nav className="dashboard-nav" aria-label="Vue principale"><button type="button" className={topView === "owners" ? "active" : ""} aria-pressed={topView === "owners"} onClick={() => changeTopView("owners")}>👥 Liste des propriétaires</button><button type="button" className={topView === "operations" ? "active" : ""} aria-pressed={topView === "operations"} onClick={() => changeTopView("operations")}>🗂️ Suivi opérationnel</button></nav></div>
       </header>
 
       {topView === "owners" ? <><section className="hero">
