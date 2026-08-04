@@ -29,7 +29,7 @@ type PrivateRegistry = {
 };
 
 const ownerLots: Record<string, number[]> = {
-  "SARL IMMOVILLIERS": [12, 24, 29, 30, 31, 32, 33, 34, 44, 53],
+  "SASU LOFI OFFICE": [12, 24, 29, 30, 31, 32, 33, 34, 44, 53],
   "SOMOGUY Dimitri": [7, 40, 85],
   "SCI SC 98 BV": [35, 54],
   "ARMENGAUD Marie-Hélène": [17, 20, 48, 49, 82, 83, 84],
@@ -164,7 +164,7 @@ const ownersSeenOnMailbox = new Set([
   "ROUILLARD Philippe",
 ]);
 const allowedPrivateOwnerKeys = new Set(Object.keys(ownerLots)
-  .filter((ownerName) => ownerName !== "SARL IMMOVILLIERS" && ownerName !== "SOMOGUY Dimitri")
+  .filter((ownerName) => ownerName !== "SASU LOFI OFFICE" && ownerName !== "SOMOGUY Dimitri")
   .map((ownerName) => commonControlPortfolios[ownerName]?.name ?? ownerName));
 
 const ownerByLot = new Map<number, Owner>();
@@ -242,7 +242,7 @@ const surfaceEstimateForLot = (lot: (typeof masterLots)[number]) => {
   return null;
 };
 
-const ownedOwnerNames = new Set(["SARL IMMOVILLIERS", "SOMOGUY Dimitri"]);
+const ownedOwnerNames = new Set(["SASU LOFI OFFICE", "SOMOGUY Dimitri"]);
 const ownedLots = masterLots.filter((lot) => ownedOwnerNames.has(lot.proprietaire ?? ""));
 const prospectLots = masterLots.filter((lot) => !ownedOwnerNames.has(lot.proprietaire ?? ""));
 const ownedShare = ownedLots.reduce((sum, lot) => sum + (lot.tantiemes ?? 0), 0) / 10000;
