@@ -40,3 +40,9 @@ next-env.d.ts
 /.wrangler/
 /outputs/
 /work/
+
+# Local deployment bundles and generated artifacts
+/.site-stage-*/
+/site-*.tar.gz
+/output/
+/tmp/
