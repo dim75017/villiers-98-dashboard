@@ -216,7 +216,9 @@ strong, b { font-weight: 800; }
 .floor-card > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding-bottom: 13px; border-bottom: 1px solid rgba(255, 255, 255, 0.075); }
 .floor-kicker { display: block; color: #91a2bf; font: 750 10px var(--font-mono), monospace; letter-spacing: 0.09em; }
 .floor-card h3 { margin: 6px 0 0; color: #fff; font-size: 21px; font-weight: 800; line-height: 1.1; letter-spacing: -0.05em; }
-.floor-card > header > strong { flex: 0 0 auto; color: #c7efff; font-size: 10px; font-weight: 800; line-height: 1.35; text-align: right; }
+.floor-summary { display: grid; flex: 0 0 auto; gap: 3px; justify-items: end; color: #c7efff; font-size: 10px; font-weight: 800; line-height: 1.35; text-align: right; }
+.floor-summary strong { color: #e4f7ff; font-weight: 850; }
+.floor-summary span:last-child { color: #93cce1; }
 .floor-lots { display: grid; grid-template-columns: repeat(auto-fit, minmax(185px, 1fr)); gap: 7px; margin-top: 13px; }
 .floor-lot { display: grid; gap: 3px; min-width: 0; padding: 10px; border: 1px solid rgba(255, 255, 255, 0.075); border-radius: 10px; background: rgba(7, 11, 18, 0.62); }
 .floor-lot.owned { border-color: rgba(92, 178, 255, 0.34); background: linear-gradient(145deg, rgba(24, 65, 104, 0.46), rgba(8, 20, 35, 0.78)); }
