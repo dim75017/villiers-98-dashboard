@@ -241,10 +241,13 @@ const calibratedSurface = (predicate: (lot: (typeof masterLots)[number]) => bool
 };
 const studioSurfacePerTantieme = calibratedSurface((lot) => lot.nature === "Studio");
 const apartmentSurfacePerTantieme = calibratedSurface((lot) => lot.nature === "Appartement");
+// Estimation terrain Dim : les 8 places du lot 35 expliquent l'écart de tantièmes des deux plateaux SCI.
+const surfaceOverrides: Record<number, number> = { 54: 200, 55: 200 };
 // Étallonage bureaux réalisé sur les lots principaux uniquement : le lot 35 (8 places) reste hors surface.
 const officeSurfacePerTantieme = 313 / (471 + 568);
 const surfaceEstimateForLot = (lot: (typeof masterLots)[number]) => {
   if (typeof lot.surface === "number") return { value: lot.surface, documented: true };
+  if (surfaceOverrides[lot.lot]) return { value: surfaceOverrides[lot.lot], documented: false };
   if (lot.lot === 84) return { value: 149.55, documented: false };
   if (lot.nature === "Studio") return { value: lot.tantiemes * studioSurfacePerTantieme, documented: false };
   if (lot.nature === "Chambre") return { value: lot.tantiemes * studioSurfacePerTantieme, documented: false };
