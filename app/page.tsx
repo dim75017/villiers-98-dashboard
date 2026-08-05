@@ -241,12 +241,10 @@ const calibratedSurface = (predicate: (lot: (typeof masterLots)[number]) => bool
 };
 const studioSurfacePerTantieme = calibratedSurface((lot) => lot.nature === "Studio");
 const apartmentSurfacePerTantieme = calibratedSurface((lot) => lot.nature === "Appartement");
+// Étallonage bureaux réalisé sur les lots principaux uniquement : le lot 35 (8 places) reste hors surface.
 const officeSurfacePerTantieme = 313 / (471 + 568);
 const surfaceEstimateForLot = (lot: (typeof masterLots)[number]) => {
   if (typeof lot.surface === "number") return { value: lot.surface, documented: true };
-  // Les tantièmes de ces deux bureaux sont compensés par le lot 35 (huit places de parking au -2).
-  // Ils ne constituent donc pas un proxy fiable de surface.
-  if (lot.lot === 54 || lot.lot === 55) return null;
   if (lot.lot === 84) return { value: 149.55, documented: false };
   if (lot.nature === "Studio") return { value: lot.tantiemes * studioSurfacePerTantieme, documented: false };
   if (lot.nature === "Chambre") return { value: lot.tantiemes * studioSurfacePerTantieme, documented: false };
