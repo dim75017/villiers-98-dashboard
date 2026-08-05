@@ -214,7 +214,7 @@ strong, b { font-weight: 800; }
 .operations-empty { grid-column: 1 / -1; margin: 0; padding: 18px; border: 1px dashed rgba(130, 151, 255, 0.24); border-radius: 13px; color: #98a6b8; font-size: 13px; text-align: center; }
 
 .portfolio-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-.floor-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.floor-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
 .floor-card { min-width: 0; padding: 17px; border: 1px solid rgba(255, 255, 255, 0.085); border-radius: 15px; background: linear-gradient(145deg, rgba(18, 24, 36, 0.98), rgba(12, 16, 25, 0.98)); }
 .floor-card > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding-bottom: 13px; border-bottom: 1px solid rgba(255, 255, 255, 0.075); }
 .floor-kicker { display: block; color: #91a2bf; font: 750 10px var(--font-mono), monospace; letter-spacing: 0.09em; }
