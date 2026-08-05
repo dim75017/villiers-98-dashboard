@@ -53,6 +53,9 @@ strong, b { font-weight: 800; }
   overflow: visible;
 }
 .identity { display: flex; align-items: center; gap: 12px; }
+.identity-home { padding: 0; border: 0; background: transparent; text-align: left; cursor: pointer; }
+.identity-home:hover strong { color: #cfeeff; }
+.identity-home:focus-visible { outline: 2px solid var(--cyan); outline-offset: 5px; border-radius: 5px; }
 .identity-mark {
   display: grid;
   place-items: center;
