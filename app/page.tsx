@@ -35,7 +35,7 @@ type PrivateRegistry = {
 
 const ownerLots: Record<string, number[]> = {
   "SASU LOFI OFFICE": [12, 24, 29, 30, 31, 32, 33, 34, 44, 53],
-  "SOMOGUY Dimitri": [7, 40, 85],
+  "SOMOGUY Dimitri": [7, 15, 40, 85],
   "SCI SC 98 BV": [35, 54],
   "ARMENGAUD Marie-Hélène": [17, 20, 48, 49, 82, 83, 84],
   "SCI SC 98 HV": [55],
@@ -67,7 +67,7 @@ const ownerLots: Record<string, number[]> = {
   "BRIERE Jean / Josette": [3, 10],
   "MAS Jean-Bernard": [26],
   "SCI 13ÈME SOUS SOL": [23],
-  "CHENE-BERNARDIE Philippe": [15],
+  "CHENE-BERNARDIE Philippe": [],
   "CORS Michel": [22],
   "DE THIEULLOY": [18],
   "SCI SODAIM": [16],
@@ -260,7 +260,7 @@ const ownedOwnerNames = new Set(["SASU LOFI OFFICE", "SOMOGUY Dimitri"]);
 const ownedLots = masterLots.filter((lot) => ownedOwnerNames.has(lot.proprietaire ?? ""));
 const prospectLots = masterLots.filter((lot) => !ownedOwnerNames.has(lot.proprietaire ?? ""));
 const ownedShare = ownedLots.reduce((sum, lot) => sum + (lot.tantiemes ?? 0), 0) / 10000;
-const fundsCommittedToDate = 3_800_000 + 3_020_000;
+const fundsCommittedToDate = 3_800_000 + 3_020_000 + 29_000;
 const estimatedRemainingAcquisition = prospectLots.reduce((sum, lot) => sum + (lot.valeurEstimee ?? 0), 0);
 
 const euro = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
