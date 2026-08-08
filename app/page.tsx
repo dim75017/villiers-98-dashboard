@@ -268,7 +268,7 @@ const pct = (value: unknown) => typeof value === "number" ? `${number.format(val
 const dateLabel = new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "short", year: "numeric" });
 const acquisitionLabel = (value: string | null | undefined) => value ? `Acq. ${dateLabel.format(new Date(value))}` : null;
 
-type OutreachStage = "to-send" | "sent" | "replied" | "declined" | "no-response" | "acquired";
+type OutreachStage = "to-send" | "sent" | "replied" | "declined" | "acquired";
 type OutreachRecord = { stage: OutreachStage; sentAt?: string; note?: string };
 type OutreachBook = Record<string, OutreachRecord>;
 const outreachStorageKey = "villiers-98-operational-follow-up-v1";
@@ -282,12 +282,12 @@ const outreachStages: Array<{ value: OutreachStage; label: string }> = [
   { value: "sent", label: "Envoyée" },
   { value: "replied", label: "Intéressé" },
   { value: "declined", label: "Refus / à recontacter" },
-  { value: "no-response", label: "Sans réponse" },
   { value: "acquired", label: "Acquisition faite" },
 ];
 const outreachStageLabel = (stage: OutreachStage) => outreachStages.find((item) => item.value === stage)?.label ?? "À envoyer";
 const localDate = () => new Date().toLocaleDateString("en-CA");
 const isOutreachStage = (value: string | null | undefined): value is OutreachStage => outreachStages.some((item) => item.value === value);
+const normalizeOutreachStage = (value: string | null | undefined): OutreachStage | null => value === "no-response" ? "sent" : isOutreachStage(value) ? value : null;
 const dashboardLocation = () => {
   if (typeof window === "undefined") return { topView: "owners" as const, outreachFilter: null, viewMode: null };
   const [section, detail] = window.location.hash.slice(1).split("/");
@@ -324,9 +324,10 @@ const savedOutreachBook = (): OutreachBook => {
       Object.entries(parsed).forEach(([ownerName, value]) => {
         if (!value || typeof value !== "object" || Array.isArray(value)) return;
         const record = value as Record<string, unknown>;
-        if (!isOutreachStage(typeof record.stage === "string" ? record.stage : null)) return;
+        const stage = normalizeOutreachStage(typeof record.stage === "string" ? record.stage : null);
+        if (!stage) return;
         records[ownerName] = {
-          stage: record.stage,
+          stage,
           sentAt: typeof record.sentAt === "string" ? record.sentAt : undefined,
           note: typeof record.note === "string" ? record.note : undefined,
         };
@@ -616,10 +617,12 @@ export default function Home({ privateAddressData, privateOutreachData, onLock }
   const trackedOwners = ownerGroups.filter((group) => group.ownerName !== "À identifier");
   const outreachFor = (ownerName: string): OutreachRecord => {
     const record = outreach[ownerName];
-    if (record && outreachStages.some((item) => item.value === record.stage)) return record;
+    const storedStage = record ? normalizeOutreachStage(record.stage) : null;
+    if (record && storedStage) return { ...record, stage: storedStage };
     const privateDefault = privateOutreachData?.[ownerName];
-    return privateDefault && outreachStages.some((item) => item.value === privateDefault.stage)
-      ? { stage: privateDefault.stage, sentAt: privateDefault.sentAt ?? undefined }
+    const defaultStage = privateDefault ? normalizeOutreachStage(privateDefault.stage) : null;
+    return privateDefault && defaultStage
+      ? { stage: defaultStage, sentAt: privateDefault.sentAt ?? undefined }
       : { stage: "to-send" };
   };
   useEffect(() => {
@@ -632,8 +635,9 @@ export default function Home({ privateAddressData, privateOutreachData, onLock }
           const existing = next[group.ownerName];
           const defaultRecord = privateOutreachData[group.ownerName];
           if (!defaultRecord) return;
-          if (!existing || existing.stage === "to-send") {
-            next[group.ownerName] = { ...existing, stage: defaultRecord.stage, sentAt: existing?.sentAt ?? defaultRecord.sentAt ?? undefined };
+          const defaultStage = normalizeOutreachStage(defaultRecord.stage);
+          if (defaultStage && (!existing || existing.stage === "to-send")) {
+            next[group.ownerName] = { ...existing, stage: defaultStage, sentAt: existing?.sentAt ?? defaultRecord.sentAt ?? undefined };
           }
         });
         return next;
@@ -664,7 +668,7 @@ export default function Home({ privateAddressData, privateOutreachData, onLock }
       return record.stage === item.value;
     }).length;
     return counts;
-  }, { "to-send": 0, sent: 0, replied: 0, declined: 0, "no-response": 0, acquired: 0 });
+  }, { "to-send": 0, sent: 0, replied: 0, declined: 0, acquired: 0 });
   const visibleTrackedOwners = trackedOwners.filter((group) => {
     const record = outreachFor(group.ownerName);
     return record.stage === outreachFilter;
