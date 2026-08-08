@@ -814,7 +814,7 @@ export default function Home({ privateAddressData, privateOutreachData, onLock }
       </section>}
 
       {topView === "owners" && <section className="section lots-section">
-        <div className="section-title"><div><span className="eyebrow copper">📋 COPROPRIÉTÉ</span><h2>Liste des propriétaires</h2></div><div className="section-actions"><div className="view-switch" role="group" aria-label="Mode d’affichage"><button type="button" className={viewMode === "owner" ? "active" : ""} aria-pressed={viewMode === "owner"} onClick={() => setViewMode("owner")}>👥 Par propriétaire</button><button type="button" className={viewMode === "floor" ? "active" : ""} aria-pressed={viewMode === "floor"} onClick={() => setViewMode("floor")}>🏢 Par étage</button></div></div></div>
+        <div className="section-title"><div><h2>📋 Liste des propriétaires</h2></div><div className="section-actions"><div className="view-switch" role="group" aria-label="Mode d’affichage"><button type="button" className={viewMode === "owner" ? "active" : ""} aria-pressed={viewMode === "owner"} onClick={() => setViewMode("owner")}>👥 Par propriétaire</button><button type="button" className={viewMode === "floor" ? "active" : ""} aria-pressed={viewMode === "floor"} onClick={() => setViewMode("floor")}>🏢 Par étage</button></div></div></div>
 
         {viewMode === "owner" ? <><div className="portfolio-grid">
           {ownerGroups.filter((group) => group.primaryLotCount > 0).map((group) => <article key={group.ownerName} className={`portfolio-card${group.lots.every(isAcquiredLot) ? " owned" : ""}`}>

@@ -14,6 +14,7 @@
   --blue-bright: #a9b7ff;
   --cyan: #66d7ff;
   --cyan-soft: rgba(102, 215, 255, 0.1);
+  --heading-gutter: clamp(14px, 2vw, 24px);
   --font-sans: "Manrope";
   --font-mono: "Geist Mono";
 }
@@ -212,9 +213,10 @@ html[data-theme="light"] .theme-toggle-track i { transform: translateX(16px); }
 .progress-finance span:last-child b { color: #c9efff; }
 
 .section { padding: 8px 0 32px; }
-.section-title { display: flex; align-items: end; justify-content: space-between; gap: 24px; margin-bottom: 18px; padding-bottom: 15px; border-bottom: 1px solid var(--line); }
+.section-title { display: flex; align-items: end; justify-content: space-between; gap: 24px; margin-bottom: 18px; padding: 0 var(--heading-gutter) 15px; border-bottom: 1px solid var(--line); }
 .eyebrow { color: #93a3ff; font: 750 11px var(--font-mono), monospace; letter-spacing: 0.11em; }
 .section-title h2 { margin: 7px 0 0; color: #fff; font-size: 34px; font-weight: 800; line-height: 1; letter-spacing: -0.065em; }
+.section-title h2:only-child { margin-top: 0; }
 .section-actions { display: flex; align-items: flex-end; flex-direction: column; gap: 8px; }
 .section-actions > strong { padding: 9px 12px; border: 1px solid rgba(130, 151, 255, 0.28); border-radius: 999px; background: rgba(130, 151, 255, 0.08); color: #cbd3ff; font-size: 11px; font-weight: 750; white-space: nowrap; }
 .view-switch { display: inline-flex; padding: 4px; border: 1px solid rgba(130, 151, 255, 0.24); border-radius: 11px; background: rgba(130, 151, 255, 0.055); }
@@ -389,6 +391,7 @@ html[data-theme="light"] .theme-toggle-track i { transform: translateX(16px); }
 .portfolio-card > footer span:last-child { color: #c6efff; font-weight: 800; white-space: nowrap; }
 
 .accessory-section { margin-top: 30px; padding-top: 24px; border-top: 1px solid var(--line); }
+.accessory-section > div:first-child { padding-inline: var(--heading-gutter); }
 .accessory-section h3 { margin: 7px 0 5px; color: #f4f6fb; font-size: 23px; font-weight: 800; letter-spacing: -0.045em; }
 .accessory-section > div > p { margin: 0; color: #99a5b5; font-size: 12px; }
 .accessory-owner-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 15px; }
