@@ -828,7 +828,7 @@ export default function Home({ privateAddressData, privateOutreachData, onLock }
       </section>}
 
       {topView === "operations" && <section className="section operations-section">
-        <div className="section-title"><div><span className="eyebrow copper">🗂️ PILOTAGE DES APPROCHES</span><h2>Suivi opérationnel</h2></div><p className="operations-save">Enregistré uniquement sur cet appareil</p></div>
+        <div className="section-title"><div><span className="eyebrow copper">🗂️ PILOTAGE DES APPROCHES</span><h2>Suivi opérationnel</h2></div><p className="operations-save">Statuts synchronisés · notes privées sur cet appareil</p></div>
         <div className="operations-summary" role="tablist" aria-label="Étape de prospection">
           {outreachStages.map((stage) => <button key={stage.value} type="button" role="tab" aria-selected={outreachFilter === stage.value} className={`stage-${stage.value}${outreachFilter === stage.value ? " active" : ""}`} onClick={() => setOutreachFilter(stage.value)}><small><span className="stage-summary-emoji" aria-hidden="true">{stage.emoji}</span><span>{stage.label}</span></small><strong>{outreachCounts[stage.value]}</strong></button>)}
         </div>
