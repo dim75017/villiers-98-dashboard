@@ -137,12 +137,23 @@ const decryptArchive = async (archive: ValidatedArchive, key: CryptoKey): Promis
   const outreach: Record<string, PrivateOutreachEntry> = Object.create(null);
   for (const [ownerKey, rawEntry] of outreachEntries) {
     if (!ownerKey || ownerKey.length > 200 || ownerKey === "__proto__" || ownerKey === "constructor" || !rawEntry || typeof rawEntry !== "object" || Array.isArray(rawEntry)) throw new Error("archive");
-    const { stage, sentAt } = rawEntry as Record<string, unknown>;
-    if (stage !== "to-send" && stage !== "sent" && stage !== "replied" && stage !== "declined" && stage !== "no-response" && stage !== "acquired") throw new Error("archive");
+    const { stage, sentAt, updatedAt, lotIds, sourceKind, confidence } = rawEntry as Record<string, unknown>;
+    if (stage !== "to-send" && stage !== "sent" && stage !== "replied" && stage !== "declined" && stage !== "no-response" && stage !== "in-progress" && stage !== "acquired") throw new Error("archive");
     if (sentAt !== null && typeof sentAt !== "string") throw new Error("archive");
     const cleanSentAt = typeof sentAt === "string" ? sentAt.trim() || null : null;
     if ((cleanSentAt?.length ?? 0) > 20 || (cleanSentAt !== null && !/^\d{4}-\d{2}-\d{2}$/.test(cleanSentAt))) throw new Error("archive");
-    outreach[ownerKey] = { stage, sentAt: cleanSentAt };
+    if (updatedAt !== undefined && updatedAt !== null && (typeof updatedAt !== "string" || updatedAt.length > 64 || !Number.isFinite(Date.parse(updatedAt)))) throw new Error("archive");
+    if (lotIds !== undefined && (!Array.isArray(lotIds) || lotIds.length > 20 || lotIds.some((lotId) => !Number.isInteger(lotId) || Number(lotId) < 1 || Number(lotId) > 999))) throw new Error("archive");
+    if (sourceKind !== undefined && sourceKind !== null && (typeof sourceKind !== "string" || sourceKind.length > 40)) throw new Error("archive");
+    if (confidence !== undefined && confidence !== null && confidence !== "confirmed" && confidence !== "strong" && confidence !== "weak") throw new Error("archive");
+    outreach[ownerKey] = {
+      stage,
+      sentAt: cleanSentAt,
+      updatedAt: typeof updatedAt === "string" ? updatedAt : null,
+      lotIds: Array.isArray(lotIds) ? lotIds as number[] : undefined,
+      sourceKind: typeof sourceKind === "string" ? sourceKind : null,
+      confidence: typeof confidence === "string" ? confidence : null,
+    };
   }
   return { addresses: normalized, outreach };
 };

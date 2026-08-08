@@ -27,16 +27,25 @@ const decrypt = async (candidate) => {
 };
 
 const payload = await decrypt(password);
+const synchronized = JSON.parse(await readFile(join(root, ".private", "villiers-outreach-sanitized.json"), "utf8"));
 const owners = Object.entries(payload.owners ?? {});
 const available = owners.filter(([, entry]) => Boolean(entry.address)).length;
 const outreach = Object.entries(payload.outreach ?? {});
-const sent = outreach.filter(([, entry]) => entry?.stage === "sent").length;
-const pending = outreach.filter(([, entry]) => entry?.stage === "to-send").length;
-if (archive.version !== 2 || payload.version !== 2 || owners.length !== 29 || available !== 27 || outreach.length !== 41 || sent !== 37 || pending !== 4) {
+const stageCounts = Object.fromEntries([...new Set(outreach.map(([, entry]) => entry?.stage))].map((stage) => [stage, outreach.filter(([, entry]) => entry?.stage === stage).length]));
+if (archive.version !== 2 || payload.version !== 2 || owners.length !== 29 || available !== 27 || outreach.length !== 41) {
   throw new Error("Encrypted registry failed its count or version checks");
 }
 if (owners.some(([, entry]) => entry.letterReady !== Boolean(entry.address))) {
   throw new Error("Letter readiness does not match the address registry");
+}
+if (synchronized?.schemaVersion !== 1 || synchronized?.privacy !== "SANITIZED_ENCRYPT_BEFORE_PUBLISHING" || !Array.isArray(synchronized.records)) {
+  throw new Error("Sanitized outreach registry is invalid");
+}
+for (const expected of synchronized.records) {
+  const actual = payload.outreach?.[expected.ownerKey];
+  if (!actual || actual.stage !== expected.stage || actual.sentAt !== expected.sentAt || actual.updatedAt !== expected.updatedAt || JSON.stringify(actual.lotIds) !== JSON.stringify(expected.lotIds) || actual.sourceKind !== expected.sourceKind || actual.confidence !== expected.confidence) {
+    throw new Error(`Encrypted outreach state does not match ${expected.ownerKey}`);
+  }
 }
 
 let wrongPasswordRejected = false;
@@ -47,4 +56,4 @@ try {
 }
 if (!wrongPasswordRejected) throw new Error("Wrong password was unexpectedly accepted");
 
-console.log(JSON.stringify({ protectedOwners: owners.length, addressesAvailable: available, addressesMissing: owners.length - available, trackedOwners: outreach.length, sent, pending, wrongPasswordRejected }));
+console.log(JSON.stringify({ protectedOwners: owners.length, addressesAvailable: available, addressesMissing: owners.length - available, trackedOwners: outreach.length, stageCounts, synchronizedRecords: synchronized.records.length, wrongPasswordRejected }));

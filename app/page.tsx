@@ -12,9 +12,14 @@ export type PrivateAddressEntry = {
   status: string | null;
   letterReady: boolean;
 };
+export type OutreachStage = "to-send" | "sent" | "replied" | "declined" | "in-progress" | "acquired";
 export type PrivateOutreachEntry = {
-  stage: "to-send" | "sent" | "replied" | "declined" | "no-response" | "acquired";
+  stage: OutreachStage | "no-response";
   sentAt: string | null;
+  updatedAt?: string | null;
+  lotIds?: number[];
+  sourceKind?: string | null;
+  confidence?: string | null;
 };
 
 type HomeProps = {
@@ -36,7 +41,7 @@ type PrivateRegistry = {
 
 const ownerLots: Record<string, number[]> = {
   "SASU LOFI OFFICE": [12, 24, 29, 30, 31, 32, 33, 34, 44, 53],
-  "SOMOGUY Dimitri": [7, 15, 40, 85],
+  "SOMOGUY Dimitri": [7, 40, 85],
   "SCI SC 98 BV": [35, 54],
   "ARMENGAUD Marie-Hélène": [17, 20, 48, 49, 82, 83, 84],
   "SCI SC 98 HV": [55],
@@ -68,7 +73,7 @@ const ownerLots: Record<string, number[]> = {
   "BRIERE Jean / Josette": [3, 10],
   "MAS Jean-Bernard": [26],
   "SCI 13ÈME SOUS SOL": [23],
-  "CHENE-BERNARDIE Philippe": [],
+  "CHENE-BERNARDIE Philippe": [15],
   "CORS Michel": [22],
   "DE THIEULLOY": [18],
   "SCI SODAIM": [16],
@@ -273,7 +278,7 @@ const habitationFormatForLot = (lot: (typeof masterLots)[number]) => {
 
 const ownedOwnerNames = new Set(["SASU LOFI OFFICE", "SOMOGUY Dimitri"]);
 const prospectLots = masterLots.filter((lot) => !ownedOwnerNames.has(lot.proprietaire ?? ""));
-const fundsCommittedToDate = 3_800_000 + 3_020_000 + 29_000;
+const fundsCommittedToDate = 3_800_000 + 3_020_000;
 
 const euro = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 const number = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 2 });
@@ -286,9 +291,8 @@ const pct = (value: unknown) => typeof value === "number" ? `${number.format(val
 const dateLabel = new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "short", year: "numeric" });
 const acquisitionLabel = (value: string | null | undefined) => value ? `Acq. ${dateLabel.format(new Date(value))}` : null;
 
-type OutreachStage = "to-send" | "sent" | "replied" | "declined" | "acquired";
 type DashboardView = "home" | "owners" | "operations" | "rentals";
-type OutreachRecord = { stage: OutreachStage; sentAt?: string; note?: string };
+type OutreachRecord = { stage: OutreachStage; sentAt?: string; note?: string; updatedAt?: string };
 type OutreachBook = Record<string, OutreachRecord>;
 const outreachStorageKey = "villiers-98-operational-follow-up-v1";
 const outreachBackupStorageKey = "villiers-98-operational-follow-up-backup-v1";
@@ -302,11 +306,16 @@ const outreachStages: Array<{ value: OutreachStage; label: string; emoji: string
   { value: "sent", label: "Envoyée", emoji: "📤" },
   { value: "replied", label: "Intéressé", emoji: "💬" },
   { value: "declined", label: "Refus / à recontacter", emoji: "🔁" },
+  { value: "in-progress", label: "Acquisition en cours", emoji: "📝" },
   { value: "acquired", label: "Acquisition faite", emoji: "✅" },
 ];
 const localDate = () => new Date().toLocaleDateString("en-CA");
 const isOutreachStage = (value: string | null | undefined): value is OutreachStage => outreachStages.some((item) => item.value === value);
 const normalizeOutreachStage = (value: string | null | undefined): OutreachStage | null => value === "no-response" ? "sent" : isOutreachStage(value) ? value : null;
+const outreachTimestamp = (value: string | null | undefined) => {
+  const timestamp = value ? Date.parse(value) : Number.NaN;
+  return Number.isFinite(timestamp) ? timestamp : 0;
+};
 const dashboardLocation = () => {
   if (typeof window === "undefined") return { topView: "home" as const, outreachFilter: null, viewMode: null };
   const [section, detail] = window.location.hash.slice(1).split("/");
@@ -352,6 +361,7 @@ const savedOutreachBook = (): OutreachBook => {
           stage,
           sentAt: typeof record.sentAt === "string" ? record.sentAt : undefined,
           note: typeof record.note === "string" ? record.note : undefined,
+          updatedAt: typeof record.updatedAt === "string" ? record.updatedAt : undefined,
         };
       });
       return records;
@@ -556,19 +566,11 @@ export default function Home({ privateAddressData, privateOutreachData, onLock }
     });
   }, []);
 
-  const dynamicallyAcquiredOwnerNames = useMemo(() => {
-    const names = new Set<string>();
-    Object.entries(outreach).forEach(([ownerName, record]) => {
-      if (record.stage === "acquired") names.add(ownerName);
-    });
-    Object.entries(privateOutreachData ?? {}).forEach(([ownerName, record]) => {
-      if (record.stage === "acquired") names.add(ownerName);
-    });
-    return names;
-  }, [outreach, privateOutreachData]);
   const ownerGroupName = (ownerName: string | null | undefined) => ownerName ? commonControlPortfolios[ownerName]?.name ?? ownerName : "À identifier";
-  const isAcquiredLot = (lot: MasterLot) => ownedOwnerNames.has(lot.proprietaire ?? "") || dynamicallyAcquiredOwnerNames.has(ownerGroupName(lot.proprietaire));
-  const activeOwnerGroups = ownerGroups.filter((group) => !ownedOwnerNames.has(group.ownerName) && !dynamicallyAcquiredOwnerNames.has(group.ownerName));
+  // Un statut de suivi ne vaut jamais titre de propriété : seuls les lots juridiquement attribués
+  // dans la base maître entrent dans les tantièmes maîtrisés et les positions déjà acquises.
+  const isAcquiredLot = (lot: MasterLot) => ownedOwnerNames.has(lot.proprietaire ?? "");
+  const activeOwnerGroups = ownerGroups.filter((group) => !ownedOwnerNames.has(group.ownerName));
   const currentOwnedLots = masterLots.filter(isAcquiredLot);
   const currentProspectLots = masterLots.filter((lot) => !isAcquiredLot(lot));
   const currentOwnedShare = currentOwnedLots.reduce((sum, lot) => sum + (lot.tantiemes ?? 0), 0) / 10000;
@@ -664,14 +666,34 @@ export default function Home({ privateAddressData, privateOutreachData, onLock }
 
   const trackedOwners = activeOwnerGroups.filter((group) => group.ownerName !== "À identifier");
   const outreachRecord = (ownerName: string, book: OutreachBook): OutreachRecord => {
-    const record = book[ownerName];
-    const storedStage = record ? normalizeOutreachStage(record.stage) : null;
-    if (record && storedStage) return { ...record, stage: storedStage };
+    const localRecord = book[ownerName];
+    const localStage = localRecord ? normalizeOutreachStage(localRecord.stage) : null;
     const privateDefault = privateOutreachData?.[ownerName];
-    const defaultStage = privateDefault ? normalizeOutreachStage(privateDefault.stage) : null;
-    return privateDefault && defaultStage
-      ? { stage: defaultStage, sentAt: privateDefault.sentAt ?? undefined }
-      : { stage: "to-send" };
+    const remoteCandidates = [privateDefault]
+      .map((record) => {
+        const stage = record ? normalizeOutreachStage(record.stage) : null;
+        return record && stage ? { ...record, stage } : null;
+      })
+      .filter((record): record is PrivateOutreachEntry & { stage: OutreachStage } => record !== null)
+      .sort((a, b) => outreachTimestamp(b.updatedAt) - outreachTimestamp(a.updatedAt));
+    const remoteRecord = remoteCandidates[0];
+
+    if (localRecord && localStage && (!remoteRecord || outreachTimestamp(localRecord.updatedAt) >= outreachTimestamp(remoteRecord.updatedAt))) {
+      return {
+        ...localRecord,
+        stage: localStage,
+        sentAt: localRecord.sentAt ?? remoteRecord?.sentAt ?? undefined,
+      };
+    }
+    if (remoteRecord) {
+      return {
+        stage: remoteRecord.stage,
+        sentAt: remoteRecord.sentAt ?? localRecord?.sentAt ?? undefined,
+        note: localRecord?.note,
+        updatedAt: remoteRecord.updatedAt ?? undefined,
+      };
+    }
+    return localRecord && localStage ? { ...localRecord, stage: localStage } : { stage: "to-send" };
   };
   const outreachFor = (ownerName: string): OutreachRecord => outreachRecord(ownerName, outreach);
   useEffect(() => {
@@ -721,13 +743,13 @@ export default function Home({ privateAddressData, privateOutreachData, onLock }
   const updateOutreach = (ownerName: string, update: Partial<OutreachRecord>) => {
     setOutreach((current) => {
       const record = outreachRecord(ownerName, current);
-      return { ...current, [ownerName]: { ...record, ...update } };
+      return { ...current, [ownerName]: { ...record, ...update, updatedAt: new Date().toISOString() } };
     });
   };
   const changeOutreachStage = (ownerName: string, stage: OutreachStage) => {
     setOutreach((current) => {
       const record = outreachRecord(ownerName, current);
-      return { ...current, [ownerName]: { ...record, stage, sentAt: stage === "to-send" ? undefined : record.sentAt ?? localDate() } };
+      return { ...current, [ownerName]: { ...record, stage, sentAt: stage === "to-send" ? undefined : record.sentAt ?? localDate(), updatedAt: new Date().toISOString() } };
     });
     setOutreachFilter(stage);
   };
@@ -737,7 +759,7 @@ export default function Home({ privateAddressData, privateOutreachData, onLock }
       return record.stage === item.value;
     }).length;
     return counts;
-  }, { "to-send": 0, sent: 0, replied: 0, declined: 0, acquired: 0 });
+  }, { "to-send": 0, sent: 0, replied: 0, declined: 0, "in-progress": 0, acquired: 0 });
   const visibleTrackedOwners = trackedOwners.filter((group) => {
     const record = outreachFor(group.ownerName);
     return record.stage === outreachFilter;

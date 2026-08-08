@@ -21,9 +21,9 @@
     "rang": 2,
     "proprietaire": "SOMOGUY Dimitri",
     "type": "Personne physique",
-    "tantiemes": 849,
-    "part": 0.0849,
-    "lotsProuves": "7, 15, 40, 85",
+    "tantiemes": 824,
+    "part": 0.0824,
+    "lotsProuves": "7, 40, 85",
     "priorite": "P0",
     "pourquoi": "Déjà détenu; hors prospection.",
     "adresse": null,
@@ -33,7 +33,7 @@
     "prochaineAction": "À rechercher / qualifier",
     "echeance": null,
     "statut": null,
-    "sources": "S05;S06;Information fournie par Dimitri 06/08/2026"
+    "sources": "S05;S06"
   },
   {
     "rang": 3,
@@ -597,19 +597,19 @@
     "rang": 34,
     "proprietaire": "CHENE-BERNARDIE Philippe",
     "type": "Personne physique",
-    "tantiemes": 0,
-    "part": 0,
+    "tantiemes": 25,
+    "part": 0.0025,
     "lotsProuves": null,
-    "priorite": "P0",
-    "pourquoi": "Lot 15 acquis par Dimitri Somoguy; propriétaire retiré de la prospection.",
+    "priorite": "P3",
+    "pourquoi": "Petit bloc; traiter après les propriétaires structurants ou par campagne groupée.",
     "adresse": null,
     "telephone": null,
     "email": null,
     "dernierContact": null,
-    "prochaineAction": "Aucune",
+    "prochaineAction": "À rechercher / qualifier",
     "echeance": null,
-    "statut": "Retiré de la prospection",
-    "sources": "S05;S06;Information fournie par Dimitri 06/08/2026"
+    "statut": null,
+    "sources": "S05;S06"
   },
   {
     "rang": 35,

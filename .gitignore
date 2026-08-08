@@ -36,6 +36,7 @@ yarn-error.log*
 
 # typescript
 next-env.d.ts
+*.tsbuildinfo
 /dist/
 /.wrangler/
 /outputs/
@@ -46,6 +47,7 @@ next-env.d.ts
 /site-*.tar.gz
 /output/
 /tmp/
+/.tmp/
 /pages-dist/
 
 # Local-only owner/contact research. May contain private correspondence addresses.

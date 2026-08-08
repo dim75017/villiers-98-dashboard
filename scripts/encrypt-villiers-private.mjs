@@ -5,6 +5,7 @@ import { dirname, join } from "node:path";
 const root = process.cwd();
 const passwordPath = join(root, ".private", "github-pages-password.txt");
 const registryPath = join(root, ".private", "owner-address-watch.json");
+const synchronizedOutreachPath = join(root, ".private", "villiers-outreach-sanitized.json");
 const outputPath = join(root, "github-pages", "public", "villiers-private.enc.json");
 const context = "villiers-98-private-addresses-v2";
 const iterations = 600_000;
@@ -14,6 +15,10 @@ if (password.length < 20) throw new Error("Private dashboard password is missing
 
 const registry = JSON.parse(await readFile(registryPath, "utf8"));
 if (registry?.schemaVersion !== 2 || !Array.isArray(registry.owners)) throw new Error("Private owner registry is invalid");
+const synchronizedOutreach = JSON.parse(await readFile(synchronizedOutreachPath, "utf8"));
+if (synchronizedOutreach?.schemaVersion !== 1 || synchronizedOutreach?.privacy !== "SANITIZED_ENCRYPT_BEFORE_PUBLISHING" || !Array.isArray(synchronizedOutreach.records)) {
+  throw new Error("Sanitized outreach state is invalid");
+}
 
 const owners = Object.fromEntries(
   registry.owners
@@ -35,6 +40,18 @@ const outreach = Object.fromEntries(
   }),
 );
 if (Object.keys(outreach).length !== 41) throw new Error("Private outreach count does not match the validated registry");
+for (const record of synchronizedOutreach.records) {
+  if (!record || typeof record !== "object" || Array.isArray(record) || !Object.hasOwn(outreach, record.ownerKey)) throw new Error("Sanitized outreach owner is invalid");
+  outreach[record.ownerKey] = {
+    ...outreach[record.ownerKey],
+    stage: record.stage,
+    sentAt: record.sentAt ?? outreach[record.ownerKey].sentAt,
+    updatedAt: record.updatedAt,
+    lotIds: record.lotIds,
+    sourceKind: record.sourceKind,
+    confidence: record.confidence,
+  };
+}
 
 const encoder = new TextEncoder();
 let salt = randomBytes(16);

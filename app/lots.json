@@ -257,17 +257,17 @@
     "etage": "4e sous-sol",
     "surface": null,
     "tantiemes": 25,
-    "proprietaire": "Dimitri SOMOGUY",
+    "proprietaire": "CHENE-BERNARDIE Philippe",
     "type": "Personne physique",
     "adresse": null,
     "telephone": null,
     "email": null,
-    "dateAcquisition": "2026-08-06T00:00:00",
-    "prixAcquisition": 29000,
+    "dateAcquisition": null,
+    "prixAcquisition": null,
     "valeurEstimee": 35000,
-    "potentiel": "P0",
-    "commentaires": "Offre d'achat acceptée pour Dimitri Somoguy, prix de 29 000 € hors frais de notaire. Acte authentique à régulariser.",
-    "sources": "S01;Information fournie par Dimitri 06/08/2026"
+    "potentiel": "P3",
+    "commentaires": null,
+    "sources": "S01;S05;S06"
   },
   {
     "lot": 16,
