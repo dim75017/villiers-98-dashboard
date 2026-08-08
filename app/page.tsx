@@ -12,7 +12,7 @@ export type PrivateAddressEntry = {
   letterReady: boolean;
 };
 export type PrivateOutreachEntry = {
-  stage: "to-send" | "sent" | "replied" | "no-response" | "acquired";
+  stage: "to-send" | "sent" | "replied" | "declined" | "no-response" | "acquired";
   sentAt: string | null;
 };
 
@@ -257,11 +257,8 @@ const surfaceEstimateForLot = (lot: (typeof masterLots)[number]) => {
 };
 
 const ownedOwnerNames = new Set(["SASU LOFI OFFICE", "SOMOGUY Dimitri"]);
-const ownedLots = masterLots.filter((lot) => ownedOwnerNames.has(lot.proprietaire ?? ""));
 const prospectLots = masterLots.filter((lot) => !ownedOwnerNames.has(lot.proprietaire ?? ""));
-const ownedShare = ownedLots.reduce((sum, lot) => sum + (lot.tantiemes ?? 0), 0) / 10000;
 const fundsCommittedToDate = 3_800_000 + 3_020_000 + 29_000;
-const estimatedRemainingAcquisition = prospectLots.reduce((sum, lot) => sum + (lot.valeurEstimee ?? 0), 0);
 
 const euro = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 const number = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 2 });
@@ -271,7 +268,7 @@ const pct = (value: unknown) => typeof value === "number" ? `${number.format(val
 const dateLabel = new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "short", year: "numeric" });
 const acquisitionLabel = (value: string | null | undefined) => value ? `Acq. ${dateLabel.format(new Date(value))}` : null;
 
-type OutreachStage = "to-send" | "sent" | "replied" | "no-response" | "acquired";
+type OutreachStage = "to-send" | "sent" | "replied" | "declined" | "no-response" | "acquired";
 type OutreachRecord = { stage: OutreachStage; sentAt?: string; note?: string };
 type OutreachBook = Record<string, OutreachRecord>;
 const outreachStorageKey = "villiers-98-operational-follow-up-v1";
@@ -283,6 +280,7 @@ const outreachStages: Array<{ value: OutreachStage; label: string }> = [
   { value: "to-send", label: "À envoyer" },
   { value: "sent", label: "Envoyée" },
   { value: "replied", label: "Réponse reçue" },
+  { value: "declined", label: "Refus / à recontacter" },
   { value: "no-response", label: "Sans réponse" },
   { value: "acquired", label: "Acquisition faite" },
 ];
@@ -290,7 +288,9 @@ const outreachStageLabel = (stage: OutreachStage) => outreachStages.find((item) 
 const localDate = () => new Date().toLocaleDateString("en-CA");
 const savedTopView = (): "owners" | "operations" => {
   if (typeof window === "undefined") return "owners";
-  return window.location.hash === "#suivi" || window.localStorage.getItem(dashboardViewStorageKey) === "operations" ? "operations" : "owners";
+  if (window.location.hash === "#suivi") return "operations";
+  if (window.location.hash === "#proprietaires") return "owners";
+  return window.localStorage.getItem(dashboardViewStorageKey) === "operations" ? "operations" : "owners";
 };
 const savedFloorView = (): "owner" | "floor" => typeof window !== "undefined" && window.localStorage.getItem(dashboardFloorViewStorageKey) === "floor" ? "floor" : "owner";
 const savedOutreachFilter = (): OutreachStage => {
@@ -354,9 +354,21 @@ export default function Home({ privateAddressData, privateOutreachData, onLock }
     try {
       window.localStorage.setItem(dashboardViewStorageKey, topView);
       const hash = topView === "operations" ? "#suivi" : "#proprietaires";
-      if (window.location.hash !== hash) window.history.replaceState(null, "", hash);
+      if (window.location.hash !== hash) {
+        window.history.replaceState({ dashboardView: topView }, "", `${window.location.pathname}${window.location.search}${hash}`);
+      }
     } catch { /* sans impact sur la vue */ }
   }, [topView]);
+  useEffect(() => {
+    const syncTopViewWithLocation = () => setTopView(savedTopView());
+    window.addEventListener("hashchange", syncTopViewWithLocation);
+    window.addEventListener("popstate", syncTopViewWithLocation);
+    syncTopViewWithLocation();
+    return () => {
+      window.removeEventListener("hashchange", syncTopViewWithLocation);
+      window.removeEventListener("popstate", syncTopViewWithLocation);
+    };
+  }, []);
   useEffect(() => {
     try { window.localStorage.setItem(dashboardFloorViewStorageKey, viewMode); } catch { /* sans impact sur la vue */ }
   }, [viewMode]);
@@ -486,7 +498,25 @@ export default function Home({ privateAddressData, privateOutreachData, onLock }
     });
   }, []);
 
-  const floorGroups = useMemo(() => {
+  const dynamicallyAcquiredOwnerNames = useMemo(() => {
+    const names = new Set<string>();
+    Object.entries(outreach).forEach(([ownerName, record]) => {
+      if (record.stage === "acquired") names.add(ownerName);
+    });
+    Object.entries(privateOutreachData ?? {}).forEach(([ownerName, record]) => {
+      if (record.stage === "acquired") names.add(ownerName);
+    });
+    return names;
+  }, [outreach, privateOutreachData]);
+  const ownerGroupName = (ownerName: string | null | undefined) => ownerName ? commonControlPortfolios[ownerName]?.name ?? ownerName : "À identifier";
+  const isAcquiredLot = (lot: MasterLot) => ownedOwnerNames.has(lot.proprietaire ?? "") || dynamicallyAcquiredOwnerNames.has(ownerGroupName(lot.proprietaire));
+  const activeOwnerGroups = ownerGroups.filter((group) => !dynamicallyAcquiredOwnerNames.has(group.ownerName));
+  const currentOwnedLots = masterLots.filter(isAcquiredLot);
+  const currentProspectLots = masterLots.filter((lot) => !isAcquiredLot(lot));
+  const currentOwnedShare = currentOwnedLots.reduce((sum, lot) => sum + (lot.tantiemes ?? 0), 0) / 10000;
+  const currentEstimatedRemainingAcquisition = currentProspectLots.reduce((sum, lot) => sum + (lot.valeurEstimee ?? 0), 0);
+
+  const floorGroups = (() => {
     const grouped = new Map<string, MasterLot[]>();
     masterLots.forEach((lot) => {
       const floor = lot.etage ?? "Niveau à confirmer";
@@ -508,13 +538,13 @@ export default function Home({ privateAddressData, privateOutreachData, onLock }
           lots: [...floorLots].sort((a, b) => a.lot - b.lot),
           parkingSpaceCount: floorLots.reduce((sum, lot) => sum + (lot.parkingSpaces ?? 0), 0),
           value: floorLots.reduce((sum, lot) => sum + (lot.valeurEstimee ?? 0), 0),
-          ownedLotCount: floorLots.filter((lot) => ownedOwnerNames.has(lot.proprietaire ?? "")).length,
+          ownedLotCount: floorLots.filter(isAcquiredLot).length,
           surface: surfaceDetails.reduce((sum, detail) => sum + detail.value, 0),
           surfaceEstimated: surfaceDetails.some((detail) => !detail.documented),
         };
       })
       .sort((a, b) => floorRank(b.floor) - floorRank(a.floor));
-  }, []);
+  })();
 
   const addressReveal = (ownerName: string, isResident: boolean) => {
     const isOpen = revealedAddressOwner === ownerName;
@@ -597,24 +627,25 @@ export default function Home({ privateAddressData, privateOutreachData, onLock }
       const record = stored && outreachStages.some((item) => item.value === stored.stage) ? stored : { stage: "to-send" as OutreachStage };
       return { ...current, [ownerName]: { ...record, stage, sentAt: stage === "to-send" ? undefined : record.sentAt ?? localDate() } };
     });
+    setOutreachFilter(stage);
   };
-  const hasBeenSent = (record: OutreachRecord) => record.stage !== "to-send" || Boolean(record.sentAt);
   const outreachCounts = outreachStages.reduce<Record<OutreachStage, number>>((counts, item) => {
     counts[item.value] = trackedOwners.filter((group) => {
       const record = outreachFor(group.ownerName);
-      return item.value === "sent" ? hasBeenSent(record) : record.stage === item.value;
+      return record.stage === item.value;
     }).length;
     return counts;
-  }, { "to-send": 0, sent: 0, replied: 0, "no-response": 0, acquired: 0 });
+  }, { "to-send": 0, sent: 0, replied: 0, declined: 0, "no-response": 0, acquired: 0 });
   const visibleTrackedOwners = trackedOwners.filter((group) => {
     const record = outreachFor(group.ownerName);
-    return outreachFilter === "sent" ? hasBeenSent(record) : record.stage === outreachFilter;
+    return record.stage === outreachFilter;
   });
   const changeTopView = (nextView: "owners" | "operations") => {
     setTopView(nextView);
     try {
       window.localStorage.setItem(dashboardViewStorageKey, nextView);
-      window.history.replaceState(null, "", nextView === "operations" ? "#suivi" : "#proprietaires");
+      const hash = nextView === "operations" ? "#suivi" : "#proprietaires";
+      window.history.replaceState({ dashboardView: nextView }, "", `${window.location.pathname}${window.location.search}${hash}`);
     } catch { /* la navigation reste utilisable */ }
   };
   const returnToMainView = () => {
@@ -634,29 +665,29 @@ export default function Home({ privateAddressData, privateOutreachData, onLock }
 
       {topView === "owners" ? <><section className="hero">
         <div className="metrics">
-          <article><small>🧩 Lots à acquérir</small><strong>{prospectLots.length}</strong><p>Hors lots déjà maîtrisés</p></article>
-          <article><small>👥 Propriétaires à approcher</small><strong>{ownerGroups.length}</strong><p>Les positions déjà détenues sont retirées</p></article>
+          <article><small>🧩 Lots à acquérir</small><strong>{currentProspectLots.length}</strong><p>Hors lots déjà maîtrisés</p></article>
+          <article><small>👥 Propriétaires à approcher</small><strong>{activeOwnerGroups.length}</strong><p>Les positions déjà détenues sont retirées</p></article>
           <article><small>🧮 Tantièmes contrôlés</small><strong>10 000</strong><p>Rapprochés lot par lot et propriétaire par propriétaire</p></article>
         </div>
-        <div className="ownership-progress"><div className="progress-copy"><span>📈 Progression de l’acquisition</span><strong>{pct(ownedShare)} des tantièmes</strong></div><div className="progress-visual" aria-label={`${pct(ownedShare)} des tantièmes déjà maîtrisés`}><div className="progress-track"><i style={{ width: `${ownedShare * 100}%` }} /><b style={{ left: `${ownedShare * 100}%` }}>{pct(ownedShare)}</b></div><div className="progress-scale"><span>0 %</span><span>25 %</span><span>50 %</span><span>75 %</span><span>100 %</span></div></div><div className="progress-finance"><span><b>{money(fundsCommittedToDate)}</b> engagés à date</span><span><b>{money(estimatedRemainingAcquisition)}</b> estimés pour le solde</span></div></div>
+        <div className="ownership-progress"><div className="progress-copy"><span>📈 Progression de l’acquisition</span><strong>{pct(currentOwnedShare)} des tantièmes</strong></div><div className="progress-visual" aria-label={`${pct(currentOwnedShare)} des tantièmes déjà maîtrisés`}><div className="progress-track"><i style={{ width: `${currentOwnedShare * 100}%` }} /><b style={{ left: `${currentOwnedShare * 100}%` }}>{pct(currentOwnedShare)}</b></div><div className="progress-scale"><span>0 %</span><span>25 %</span><span>50 %</span><span>75 %</span><span>100 %</span></div></div><div className="progress-finance"><span><b>{money(fundsCommittedToDate)}</b> engagés à date</span><span><b>{money(currentEstimatedRemainingAcquisition)}</b> estimés pour le solde</span></div></div>
       </section>
 
       <section className="section lots-section">
         <div className="section-title"><div><span className="eyebrow copper">📊 PORTEFEUILLES À ACQUÉRIR</span><h2>Propriétaires à contacter</h2></div><div className="section-actions"><div className="view-switch" role="group" aria-label="Mode d’affichage"><button type="button" className={viewMode === "owner" ? "active" : ""} aria-pressed={viewMode === "owner"} onClick={() => setViewMode("owner")}>👥 Par propriétaire</button><button type="button" className={viewMode === "floor" ? "active" : ""} aria-pressed={viewMode === "floor"} onClick={() => setViewMode("floor")}>🏢 Par étage</button></div></div></div>
 
         {viewMode === "owner" ? <><div className="portfolio-grid">
-          {ownerGroups.filter((group) => group.primaryLotCount > 0).map((group) => <article key={group.ownerName} className="portfolio-card">
+          {activeOwnerGroups.filter((group) => group.primaryLotCount > 0).map((group) => <article key={group.ownerName} className="portfolio-card">
             <header><div><span className="portfolio-type">{text(group.type)}</span><h3>👤 {group.ownerName}</h3><div className="owner-badges">{addressReveal(group.ownerName, group.mailboxSeen)}{corporateReveal(group.ownerName, group.corporateProfiles)}</div></div><div className="portfolio-weight"><strong>{pct(group.ownerShare)}</strong><span>{number.format(group.ownerWeight)} tantièmes</span></div></header>
             <div className="primary-categories">{group.primaryCategories.map((category) => <section key={category.name} className={`primary-category ${category.name === "Habitations" ? "habitation" : "bureau"}`}><h4>{categoryEmoji[category.name]} {categoryShortName[category.name]}</h4><div>{category.lots.map((lot) => { const surfaceDetail = surfaceEstimateForLot(lot); const acquisition = acquisitionLabel(lot.dateAcquisition); return <span key={lot.lot} className="primary-lot"><b>Lot {lot.lot}</b><small>{text(lot.etage)}{surfaceDetail ? ` · ${surfaceDetail.documented ? "" : "≈ "}${number.format(surfaceDetail.value)} m²` : ""}</small>{acquisition && <i>📅 {acquisition}</i>}{lot.valeurEstimee && <em>≈ {money(lot.valeurEstimee)}</em>}{lot.valuationNote && <i>{lot.valuationNote}</i>}</span>; })}</div></section>)}</div>
             {group.accessoryLots.length > 0 && <div className="accessory-line">{group.accessoryCategories.map((category) => { const categoryValue = category.lots.reduce((sum, lot) => sum + (lot.valeurEstimee ?? 0), 0); const acquisitions = category.lots.map((lot) => acquisitionLabel(lot.dateAcquisition) ? `L${lot.lot} · ${acquisitionLabel(lot.dateAcquisition)}` : null).filter(Boolean); const parkingSpaces = category.name === "Parkings" ? category.lots.reduce((sum, lot) => sum + (lot.parkingSpaces ?? 1), 0) : category.lots.length; const categoryLabel = category.name === "Parkings" ? `${parkingSpaces} place${parkingSpaces > 1 ? "s" : ""} de parking` : `${category.lots.length} ${categoryShortName[category.name].toLocaleLowerCase("fr")}`; return <span key={category.name}>{categoryEmoji[category.name]} {categoryLabel} · lot{category.lots.length > 1 ? "s" : ""} {category.lots.map((lot) => lot.lot).join(", ")}{categoryValue ? ` · ≈ ${money(categoryValue)}` : ""}{acquisitions.length ? ` · 📅 ${acquisitions.join(" · ")}` : ""}</span>; })}</div>}
             <footer><span>{group.estimatedPrimarySurface ? `📐 ${group.estimatedPrimarySurfaceCount ? "≈ " : ""}${number.format(group.estimatedPrimarySurface)} m²${group.documentedPrimarySurfaceCount ? ` · ${group.documentedPrimarySurfaceCount} mesuré${group.documentedPrimarySurfaceCount > 1 ? "s" : ""}` : ""}` : "📐 Surface non reconstituée"}</span><span>{group.value ? `💶 ≈ ${money(group.value)}` : ""}</span></footer>
           </article>)}</div>
 
-        <section className="accessory-section"><div><span className="eyebrow">🅿️ 📦 ANNEXES SEULES</span><h3>Parkings et caves sans logement ni bureau associé</h3><p>Parkings : base de travail ≈ 35 k€ par place, recalibrée sur un loyer observé de 200 à 230 € / mois. À confirmer par dimensions, accès et comparables de vente.</p></div><div className="accessory-owner-list">{ownerGroups.filter((group) => group.primaryLotCount === 0).map((group) => <article key={group.ownerName}><div><strong>👤 {group.ownerName}</strong><small>{text(group.type)} · {number.format(group.ownerWeight)} tantièmes</small><div className="owner-badges">{addressReveal(group.ownerName, group.mailboxSeen)}{corporateReveal(group.ownerName, group.corporateProfiles)}</div></div><p>{group.accessoryCategories.map((category) => { const categoryValue = category.lots.reduce((sum, lot) => sum + (lot.valeurEstimee ?? 0), 0); const parkingSpaces = category.name === "Parkings" ? category.lots.reduce((sum, lot) => sum + (lot.parkingSpaces ?? 1), 0) : category.lots.length; const categoryLabel = category.name === "Parkings" ? `${parkingSpaces} place${parkingSpaces > 1 ? "s" : ""} de parking` : `${category.lots.length} ${categoryShortName[category.name].toLocaleLowerCase("fr")}`; return <span key={category.name}>{categoryEmoji[category.name]} {categoryLabel} : lot{category.lots.length > 1 ? "s" : ""} {category.lots.map((lot) => lot.lot).join(", ")}{categoryValue ? ` · ≈ ${money(categoryValue)}` : ""}</span>; })}</p></article>)}</div></section></> : <div className="floor-grid">{floorGroups.map((group) => <article key={group.floor} className="floor-card"><header><div><span className="floor-kicker">🏢 NIVEAU</span><h3>{group.floor}</h3></div><div className="floor-summary"><strong>{group.lots.length} lot{group.lots.length > 1 ? "s" : ""}{group.parkingSpaceCount ? ` · ${group.parkingSpaceCount} places` : ""}{group.ownedLotCount > 0 ? ` · ${group.ownedLotCount} acquis` : ""}</strong>{group.surface > 0 && <span>📐 {group.surfaceEstimated ? "≈ " : ""}{number.format(group.surface)} m²</span>}<span>≈ {money(group.value)}</span></div></header><div className="floor-lots">{group.lots.map((lot) => { const surfaceDetail = surfaceEstimateForLot(lot); const ownerName = lot.proprietaire ? commonControlPortfolios[lot.proprietaire]?.name ?? lot.proprietaire : "À identifier"; const isOwned = ownedOwnerNames.has(lot.proprietaire ?? ""); const isResident = lot.proprietaire ? ownersSeenOnMailbox.has(ownerName) : null; const profiles = lot.proprietaire ? corporateProfiles[ownerName] ?? null : null; return <article key={lot.lot} className={`floor-lot${isOwned ? " owned" : ""}`}><span>{lot.categorie === "Parkings" && lot.parkingSpaces ? `🅿️ ${lot.parkingSpaces} places de parking` : `${categoryEmoji[lot.categorie]} ${categoryShortName[lot.categorie]}`}</span><b>Lot {lot.lot}</b><strong>{ownerName}</strong>{isOwned ? <div className="floor-status"><i className="owned-lot">✓ Déjà acquis</i></div> : isResident !== null && <div className="owner-badges floor-owner-badges"><i className={isResident ? "resident" : "non-resident"}>📍 {isResident ? "Résident" : "Non-résident"}</i>{corporateReveal(`floor-${lot.lot}`, profiles)}</div>}{surfaceDetail && <small>{surfaceDetail.documented ? "" : "≈ "}{number.format(surfaceDetail.value)} m²</small>}{lot.valeurEstimee && <em>≈ {money(lot.valeurEstimee)}</em>}</article>; })}</div></article>)}</div>}
+        <section className="accessory-section"><div><span className="eyebrow">🅿️ 📦 ANNEXES SEULES</span><h3>Parkings et caves sans logement ni bureau associé</h3><p>Parkings : base de travail ≈ 35 k€ par place, recalibrée sur un loyer observé de 200 à 230 € / mois. À confirmer par dimensions, accès et comparables de vente.</p></div><div className="accessory-owner-list">{activeOwnerGroups.filter((group) => group.primaryLotCount === 0).map((group) => <article key={group.ownerName}><div><strong>👤 {group.ownerName}</strong><small>{text(group.type)} · {number.format(group.ownerWeight)} tantièmes</small><div className="owner-badges">{addressReveal(group.ownerName, group.mailboxSeen)}{corporateReveal(group.ownerName, group.corporateProfiles)}</div></div><p>{group.accessoryCategories.map((category) => { const categoryValue = category.lots.reduce((sum, lot) => sum + (lot.valeurEstimee ?? 0), 0); const parkingSpaces = category.name === "Parkings" ? category.lots.reduce((sum, lot) => sum + (lot.parkingSpaces ?? 1), 0) : category.lots.length; const categoryLabel = category.name === "Parkings" ? `${parkingSpaces} place${parkingSpaces > 1 ? "s" : ""} de parking` : `${category.lots.length} ${categoryShortName[category.name].toLocaleLowerCase("fr")}`; return <span key={category.name}>{categoryEmoji[category.name]} {categoryLabel} : lot{category.lots.length > 1 ? "s" : ""} {category.lots.map((lot) => lot.lot).join(", ")}{categoryValue ? ` · ≈ ${money(categoryValue)}` : ""}</span>; })}</p></article>)}</div></section></> : <div className="floor-grid">{floorGroups.map((group) => <article key={group.floor} className="floor-card"><header><div><span className="floor-kicker">🏢 NIVEAU</span><h3>{group.floor}</h3></div><div className="floor-summary"><strong>{group.lots.length} lot{group.lots.length > 1 ? "s" : ""}{group.parkingSpaceCount ? ` · ${group.parkingSpaceCount} places` : ""}{group.ownedLotCount > 0 ? ` · ${group.ownedLotCount} acquis` : ""}</strong>{group.surface > 0 && <span>📐 {group.surfaceEstimated ? "≈ " : ""}{number.format(group.surface)} m²</span>}<span>≈ {money(group.value)}</span></div></header><div className="floor-lots">{group.lots.map((lot) => { const surfaceDetail = surfaceEstimateForLot(lot); const ownerName = ownerGroupName(lot.proprietaire); const isOwned = isAcquiredLot(lot); const isResident = lot.proprietaire ? ownersSeenOnMailbox.has(ownerName) : null; const profiles = lot.proprietaire ? corporateProfiles[ownerName] ?? null : null; return <article key={lot.lot} className={`floor-lot${isOwned ? " owned" : ""}`}><span>{lot.categorie === "Parkings" && lot.parkingSpaces ? `🅿️ ${lot.parkingSpaces} places de parking` : `${categoryEmoji[lot.categorie]} ${categoryShortName[lot.categorie]}`}</span><b>Lot {lot.lot}</b><strong>{ownerName}</strong>{isOwned ? <div className="floor-status"><i className="owned-lot">✓ Déjà acquis</i></div> : isResident !== null && <div className="owner-badges floor-owner-badges"><i className={isResident ? "resident" : "non-resident"}>📍 {isResident ? "Résident" : "Non-résident"}</i>{corporateReveal(`floor-${lot.lot}`, profiles)}</div>}{surfaceDetail && <small>{surfaceDetail.documented ? "" : "≈ "}{number.format(surfaceDetail.value)} m²</small>}{lot.valeurEstimee && <em>≈ {money(lot.valeurEstimee)}</em>}</article>; })}</div></article>)}</div>}
       </section></> : <section className="section operations-section">
         <div className="section-title"><div><span className="eyebrow copper">🗂️ PILOTAGE DES APPROCHES</span><h2>Suivi opérationnel</h2></div><p className="operations-save">Enregistré uniquement sur cet appareil</p></div>
         <div className="operations-summary" role="tablist" aria-label="Étape de prospection">
-          {outreachStages.map((stage) => <button key={stage.value} type="button" role="tab" aria-selected={outreachFilter === stage.value} className={outreachFilter === stage.value ? "active" : ""} onClick={() => setOutreachFilter(stage.value)}><small>{stage.label}</small><strong>{outreachCounts[stage.value]}</strong></button>)}
+          {outreachStages.map((stage) => <button key={stage.value} type="button" role="tab" aria-selected={outreachFilter === stage.value} className={`stage-${stage.value}${outreachFilter === stage.value ? " active" : ""}`} onClick={() => setOutreachFilter(stage.value)}><small>{stage.label}</small><strong>{outreachCounts[stage.value]}</strong></button>)}
         </div>
         <div className="operations-list">
           {visibleTrackedOwners.map((group) => {

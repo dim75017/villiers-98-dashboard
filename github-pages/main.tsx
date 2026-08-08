@@ -137,7 +137,7 @@ const decryptArchive = async (archive: ValidatedArchive, key: CryptoKey): Promis
   for (const [ownerKey, rawEntry] of outreachEntries) {
     if (!ownerKey || ownerKey.length > 200 || ownerKey === "__proto__" || ownerKey === "constructor" || !rawEntry || typeof rawEntry !== "object" || Array.isArray(rawEntry)) throw new Error("archive");
     const { stage, sentAt } = rawEntry as Record<string, unknown>;
-    if (stage !== "to-send" && stage !== "sent" && stage !== "replied" && stage !== "no-response" && stage !== "acquired") throw new Error("archive");
+    if (stage !== "to-send" && stage !== "sent" && stage !== "replied" && stage !== "declined" && stage !== "no-response" && stage !== "acquired") throw new Error("archive");
     if (sentAt !== null && typeof sentAt !== "string") throw new Error("archive");
     const cleanSentAt = typeof sentAt === "string" ? sentAt.trim() || null : null;
     if ((cleanSentAt?.length ?? 0) > 20 || (cleanSentAt !== null && !/^\d{4}-\d{2}-\d{2}$/.test(cleanSentAt))) throw new Error("archive");

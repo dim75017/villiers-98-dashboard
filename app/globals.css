@@ -187,15 +187,29 @@ strong, b { font-weight: 800; }
 
 .operations-section { padding-top: 36px; }
 .operations-save { margin: 0; color: #8d9bad; font-size: 11px; font-weight: 700; }
-.operations-summary { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
+.operations-summary { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
 .operations-summary button { padding: 16px; border: 1px solid rgba(130, 151, 255, 0.18); border-radius: 13px; background: linear-gradient(145deg, rgba(20, 27, 42, 0.85), rgba(11, 15, 24, 0.82)); color: inherit; font-family: inherit; text-align: left; cursor: pointer; transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease; }
-.operations-summary button:hover { border-color: rgba(102, 215, 255, 0.42); }
-.operations-summary button.active { border-color: rgba(102, 215, 255, 0.55); background: linear-gradient(145deg, rgba(38, 89, 132, 0.74), rgba(13, 27, 45, 0.94)); }
+.operations-summary button:hover { transform: translateY(-1px); }
+.operations-summary button.stage-to-send { border-color: rgba(148, 163, 184, 0.24); }
+.operations-summary button.stage-sent { border-color: rgba(96, 180, 255, 0.26); }
+.operations-summary button.stage-replied { border-color: rgba(45, 212, 191, 0.28); }
+.operations-summary button.stage-declined { border-color: rgba(251, 146, 60, 0.3); }
+.operations-summary button.stage-no-response { border-color: rgba(167, 139, 250, 0.28); }
+.operations-summary button.stage-acquired { border-color: rgba(74, 222, 128, 0.3); }
+.operations-summary button.stage-to-send.active { border-color: rgba(148, 163, 184, 0.62); background: linear-gradient(145deg, rgba(61, 74, 93, 0.76), rgba(20, 27, 37, 0.94)); }
+.operations-summary button.stage-sent.active { border-color: rgba(96, 180, 255, 0.62); background: linear-gradient(145deg, rgba(32, 82, 137, 0.78), rgba(11, 30, 55, 0.95)); }
+.operations-summary button.stage-replied.active { border-color: rgba(45, 212, 191, 0.62); background: linear-gradient(145deg, rgba(23, 101, 96, 0.76), rgba(8, 43, 46, 0.95)); }
+.operations-summary button.stage-declined.active { border-color: rgba(251, 146, 60, 0.64); background: linear-gradient(145deg, rgba(122, 66, 31, 0.76), rgba(54, 28, 16, 0.95)); }
+.operations-summary button.stage-no-response.active { border-color: rgba(167, 139, 250, 0.62); background: linear-gradient(145deg, rgba(75, 55, 129, 0.76), rgba(31, 22, 61, 0.95)); }
+.operations-summary button.stage-acquired.active { border-color: rgba(74, 222, 128, 0.64); background: linear-gradient(145deg, rgba(29, 105, 68, 0.76), rgba(11, 48, 32, 0.95)); }
 .operations-summary small { display: block; color: #96a3b8; font: 750 10px var(--font-mono), monospace; letter-spacing: 0.06em; text-transform: uppercase; }
 .operations-summary strong { display: block; margin-top: 9px; color: #eaf4ff; font-size: 28px; font-weight: 800; letter-spacing: -0.065em; }
 .operations-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .operation-card { min-width: 0; padding: 16px; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 14px; background: linear-gradient(145deg, rgba(18, 24, 36, 0.98), rgba(12, 16, 25, 0.98)); }
-.operation-card.stage-replied { border-color: rgba(102, 215, 255, 0.28); }
+.operation-card.stage-sent { border-color: rgba(96, 180, 255, 0.28); }
+.operation-card.stage-replied { border-color: rgba(45, 212, 191, 0.34); background: linear-gradient(145deg, rgba(15, 47, 49, 0.74), rgba(10, 24, 30, 0.95)); }
+.operation-card.stage-declined { border-color: rgba(251, 146, 60, 0.34); background: linear-gradient(145deg, rgba(56, 32, 18, 0.74), rgba(29, 17, 12, 0.95)); }
+.operation-card.stage-no-response { border-color: rgba(167, 139, 250, 0.32); background: linear-gradient(145deg, rgba(38, 29, 68, 0.72), rgba(20, 15, 39, 0.95)); }
 .operation-card.stage-acquired { border-color: rgba(74, 222, 128, 0.32); background: linear-gradient(145deg, rgba(20, 43, 38, 0.72), rgba(12, 23, 23, 0.92)); }
 .operation-card > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid rgba(255, 255, 255, 0.075); }
 .operation-card header span { color: #a8bfd3; font: 750 9px var(--font-mono), monospace; letter-spacing: 0.055em; }
@@ -203,6 +217,10 @@ strong, b { font-weight: 800; }
 .operation-card header small { display: block; margin-top: 6px; color: #8f9cad; font-size: 10px; font-weight: 700; }
 .operation-card > header > strong { flex: 0 0 auto; padding: 5px 7px; border: 1px solid rgba(130, 151, 255, 0.22); border-radius: 999px; background: rgba(130, 151, 255, 0.08); color: #d6ddff; font-size: 10px; font-weight: 800; white-space: nowrap; }
 .stage-acquired > header > strong { border-color: rgba(74, 222, 128, 0.32); background: rgba(34, 197, 94, 0.1); color: #b7f4cf; }
+.stage-replied > header > strong { border-color: rgba(45, 212, 191, 0.34); background: rgba(20, 184, 166, 0.1); color: #abf8eb; }
+.stage-declined > header > strong { border-color: rgba(251, 146, 60, 0.34); background: rgba(249, 115, 22, 0.1); color: #ffd0a0; }
+.stage-no-response > header > strong { border-color: rgba(167, 139, 250, 0.34); background: rgba(139, 92, 246, 0.1); color: #d8ccff; }
+.stage-sent > header > strong { border-color: rgba(96, 180, 255, 0.32); background: rgba(59, 130, 246, 0.1); color: #b7ddff; }
 .operation-controls { display: grid; grid-template-columns: minmax(0, 1fr) 134px; gap: 9px; margin-top: 12px; }
 .operation-controls label, .operation-note { display: grid; gap: 5px; color: #a9b5c6; font-size: 10px; font-weight: 800; }
 .operation-controls select, .operation-controls input, .operation-note textarea { width: 100%; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; outline: none; background: rgba(5, 8, 14, 0.7); color: #e8edf7; font-size: 12px; font-weight: 700; }
