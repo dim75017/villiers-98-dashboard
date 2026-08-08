@@ -760,7 +760,7 @@ export default function Home({ privateAddressData, privateOutreachData, onLock }
         <nav className="sidebar-nav" aria-label="Navigation principale">
           <button type="button" className={topView === "home" ? "active" : ""} aria-pressed={topView === "home"} onClick={() => changeTopView("home")}><span>🏠</span> Accueil</button>
           <button type="button" className={topView === "owners" ? "active" : ""} aria-pressed={topView === "owners"} onClick={() => changeTopView("owners")}><span>👥</span> Liste des propriétaires</button>
-          <button type="button" className={topView === "operations" ? "active" : ""} aria-pressed={topView === "operations"} onClick={() => changeTopView("operations")}><span>🗂️</span> Suivi acquisition</button>
+          <button type="button" className={topView === "operations" ? "active" : ""} aria-pressed={topView === "operations"} onClick={() => changeTopView("operations")}><span>🤝</span> Suivi acquisition</button>
           <button type="button" className={topView === "rentals" ? "active" : ""} aria-pressed={topView === "rentals"} onClick={() => changeTopView("rentals")}><span>🔑</span> Suivi location</button>
         </nav>
       </aside>
