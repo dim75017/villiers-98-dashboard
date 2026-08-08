@@ -280,7 +280,7 @@ const outreachFilterStorageKey = "villiers-98-outreach-filter-v1";
 const outreachStages: Array<{ value: OutreachStage; label: string }> = [
   { value: "to-send", label: "À envoyer" },
   { value: "sent", label: "Envoyée" },
-  { value: "replied", label: "Réponse reçue" },
+  { value: "replied", label: "Intéressé" },
   { value: "declined", label: "Refus / à recontacter" },
   { value: "no-response", label: "Sans réponse" },
   { value: "acquired", label: "Acquisition faite" },
@@ -727,7 +727,7 @@ export default function Home({ privateAddressData, privateOutreachData, onLock }
                 <label>Statut<select value={record.stage} onChange={(event) => changeOutreachStage(group.ownerName, event.target.value as OutreachStage)}>{outreachStages.map((stage) => <option key={stage.value} value={stage.value}>{stage.label}</option>)}</select></label>
                 <label>Date d’envoi<input type="date" value={record.sentAt ?? ""} onChange={(event) => updateOutreach(group.ownerName, { sentAt: event.target.value || undefined })} /></label>
               </div>
-              <label className="operation-note">Note<textarea value={record.note ?? ""} placeholder="Ex. courrier déposé, réponse reçue, rappel à prévoir…" onChange={(event) => updateOutreach(group.ownerName, { note: event.target.value })} /></label>
+              <label className="operation-note">Note<textarea value={record.note ?? ""} placeholder="Ex. intérêt confirmé, échange en cours, rappel à prévoir…" onChange={(event) => updateOutreach(group.ownerName, { note: event.target.value })} /></label>
             </article>;
           })}
           {visibleTrackedOwners.length === 0 && <p className="operations-empty">Aucun propriétaire dans cette étape.</p>}
