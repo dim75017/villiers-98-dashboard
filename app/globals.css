@@ -243,7 +243,8 @@ html[data-theme="light"] .theme-toggle-track i { transform: translateX(16px); }
 .operations-summary button.stage-replied.active { border-color: rgba(45, 212, 191, 0.62); background: linear-gradient(145deg, rgba(23, 101, 96, 0.76), rgba(8, 43, 46, 0.95)); }
 .operations-summary button.stage-declined.active { border-color: rgba(248, 113, 113, 0.66); background: linear-gradient(145deg, rgba(117, 36, 43, 0.78), rgba(55, 17, 25, 0.95)); }
 .operations-summary button.stage-acquired.active { border-color: rgba(74, 222, 128, 0.64); background: linear-gradient(145deg, rgba(29, 105, 68, 0.76), rgba(11, 48, 32, 0.95)); }
-.operations-summary small { display: block; color: #96a3b8; font: 750 10px var(--font-mono), monospace; letter-spacing: 0.06em; text-transform: uppercase; }
+.operations-summary small { display: flex; align-items: center; gap: 7px; color: #96a3b8; font: 750 10px var(--font-mono), monospace; letter-spacing: 0.06em; text-transform: uppercase; }
+.stage-summary-emoji { flex: 0 0 auto; font-size: 17px; line-height: 1; letter-spacing: 0; }
 .operations-summary strong { display: block; margin-top: 9px; color: #eaf4ff; font-size: 28px; font-weight: 800; letter-spacing: -0.065em; }
 .operations-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .operation-card { min-width: 0; padding: 16px; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 14px; background: linear-gradient(145deg, rgba(18, 24, 36, 0.98), rgba(12, 16, 25, 0.98)); }
@@ -321,6 +322,7 @@ html[data-theme="light"] .theme-toggle-track i { transform: translateX(16px); }
 .portfolio-card > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; padding-bottom: 14px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
 .portfolio-card > header > div:first-child { min-width: 0; }
 .portfolio-card h3 { margin: 6px 0 0; color: #fff; font-size: 20px; font-weight: 800; line-height: 1.16; letter-spacing: -0.045em; overflow-wrap: anywhere; }
+.owner-identity-emoji { display: inline-block; margin-right: 3px; font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif; font-size: clamp(28px, 2vw, 34px); line-height: 0.8; vertical-align: -6px; }
 .owned-portfolio { display: inline-block; margin-left: 7px; padding: 3px 6px; border: 1px solid rgba(96, 180, 255, 0.42); border-radius: 999px; background: rgba(46, 142, 225, 0.14); color: #abdfff; font-size: 9px; font-style: normal; font-weight: 800; letter-spacing: 0; vertical-align: 2px; white-space: nowrap; }
 .portfolio-subtitle { display: block; margin-top: 6px; color: #99d3e7; font-size: 10px; font-weight: 650; line-height: 1.4; }
 .owner-badges { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
@@ -463,7 +465,6 @@ html[data-theme="light"] .theme-toggle-track i { transform: translateX(16px); }
   .ownership-progress { padding: 14px 10px; }
   .operation-card, .portfolio-card, .floor-card { padding: 12px; }
   .operation-card > header, .portfolio-card > header, .floor-card > header { flex-direction: column; }
-  .operation-card > header > strong { align-self: flex-start; white-space: normal; }
   .portfolio-weight { width: 100%; text-align: left; }
   .floor-summary { justify-items: start; text-align: left; }
   .corporate-popover { width: min(410px, calc(100vw - 24px)); min-width: 0; }
