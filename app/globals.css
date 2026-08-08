@@ -196,11 +196,23 @@ strong, b { font-weight: 800; }
 .operation-card header span { color: #a8bfd3; font: 750 9px var(--font-mono), monospace; letter-spacing: 0.055em; }
 .operation-card h3 { margin: 5px 0 0; color: #fff; font-size: 17px; font-weight: 800; line-height: 1.16; letter-spacing: -0.045em; overflow-wrap: anywhere; }
 .operation-card header small { display: block; margin-top: 6px; color: #8f9cad; font-size: 10px; font-weight: 700; }
+.operation-owner-badges { margin-top: 8px; }
 .operation-card > header > strong { flex: 0 0 auto; padding: 5px 7px; border: 1px solid rgba(130, 151, 255, 0.22); border-radius: 999px; background: rgba(130, 151, 255, 0.08); color: #d6ddff; font-size: 10px; font-weight: 800; white-space: nowrap; }
 .stage-acquired > header > strong { border-color: rgba(74, 222, 128, 0.32); background: rgba(34, 197, 94, 0.1); color: #b7f4cf; }
 .stage-replied > header > strong { border-color: rgba(45, 212, 191, 0.34); background: rgba(20, 184, 166, 0.1); color: #abf8eb; }
 .stage-declined > header > strong { border-color: rgba(248, 113, 113, 0.36); background: rgba(239, 68, 68, 0.1); color: #ffc1c1; }
 .stage-sent > header > strong { border-color: rgba(96, 180, 255, 0.32); background: rgba(59, 130, 246, 0.1); color: #b7ddff; }
+.operation-portfolio { padding: 12px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.075); }
+.operation-portfolio-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 9px; margin-bottom: 9px; color: #9aa8ba; font-size: 10px; font-weight: 750; }
+.operation-portfolio-meta span { padding: 4px 6px; border: 1px solid rgba(130, 151, 255, 0.18); border-radius: 999px; background: rgba(130, 151, 255, 0.055); color: #bec9da; }
+.operation-portfolio-meta strong { color: #c5eaff; font-size: 10px; font-weight: 800; }
+.operation-lot-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(138px, 1fr)); gap: 7px; }
+.operation-lot-grid article { display: grid; gap: 3px; min-width: 0; padding: 9px; border: 1px solid rgba(255, 255, 255, 0.075); border-radius: 9px; background: rgba(7, 11, 18, 0.54); }
+.operation-lot-grid span { color: #93a2b5; font-size: 9px; font-weight: 750; line-height: 1.3; }
+.operation-lot-grid b { color: #f7f9ff; font: 800 11px var(--font-mono), monospace; }
+.operation-lot-grid small { color: #b3becb; font-size: 10px; font-weight: 650; line-height: 1.35; }
+.operation-lot-grid i { color: #9bcfe2; font-size: 9px; font-style: normal; font-weight: 700; }
+.operation-lot-grid em { color: #d4e0ff; font: 750 9px var(--font-mono), monospace; font-style: normal; }
 .operation-controls { display: grid; grid-template-columns: minmax(0, 1fr) 134px; gap: 9px; margin-top: 12px; }
 .operation-controls label, .operation-note { display: grid; gap: 5px; color: #a9b5c6; font-size: 10px; font-weight: 800; }
 .operation-controls select, .operation-controls input, .operation-note textarea { width: 100%; border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; outline: none; background: rgba(5, 8, 14, 0.7); color: #e8edf7; font-size: 12px; font-weight: 700; }
