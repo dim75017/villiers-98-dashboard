@@ -296,10 +296,21 @@ const acquisitionLabel = (value: string | null | undefined) => value ? `Acq. ${d
 type DashboardView = "home" | "owners" | "operations" | "rentals";
 type OutreachRecord = { stage: OutreachStage; sentAt?: string; note?: string; updatedAt?: string };
 type OutreachBook = Record<string, OutreachRecord>;
+type RentalStage = "to-prepare" | "available" | "rented" | "owner-use";
+type RentalRecord = {
+  stage: RentalStage;
+  monthlyRent?: number;
+  occupant?: string;
+  leaseStart?: string;
+  leaseEnd?: string;
+  note?: string;
+};
+type RentalBook = Record<string, RentalRecord>;
 const outreachStorageKey = "villiers-98-operational-follow-up-v1";
 const outreachBackupStorageKey = "villiers-98-operational-follow-up-backup-v1";
 const outreachBootstrapKey = "villiers-98-operational-follow-up-bootstrap-v3";
 const outreachNoteRecoveryKey = "villiers-98-operational-follow-up-note-recovery-v1";
+const rentalStorageKey = "villiers-98-rental-follow-up-v1";
 const dashboardViewStorageKey = "villiers-98-active-view-v1";
 const dashboardFloorViewStorageKey = "villiers-98-floor-view-v1";
 const outreachFilterStorageKey = "villiers-98-outreach-filter-v1";
@@ -310,6 +321,12 @@ const outreachStages: Array<{ value: OutreachStage; label: string; emoji: string
   { value: "declined", label: "Refus / à recontacter", emoji: "🔁" },
   { value: "in-progress", label: "Acquisition en cours", emoji: "📝" },
   { value: "acquired", label: "Acquisition faite", emoji: "✅" },
+];
+const rentalStages: Array<{ value: RentalStage; label: string; emoji: string }> = [
+  { value: "to-prepare", label: "À préparer", emoji: "🛠️" },
+  { value: "available", label: "Disponible", emoji: "🔑" },
+  { value: "rented", label: "Loué", emoji: "✅" },
+  { value: "owner-use", label: "Usage interne", emoji: "🏢" },
 ];
 const localDate = () => new Date().toLocaleDateString("en-CA");
 const isOutreachStage = (value: string | null | undefined): value is OutreachStage => outreachStages.some((item) => item.value === value);
@@ -373,6 +390,33 @@ const savedOutreachBook = (): OutreachBook => {
   }
   return {};
 };
+const isRentalStage = (value: unknown): value is RentalStage => rentalStages.some((stage) => stage.value === value);
+const savedRentalBook = (): RentalBook => {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = window.localStorage.getItem(rentalStorageKey);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    const records: RentalBook = {};
+    Object.entries(parsed).forEach(([lotKey, value]) => {
+      if (!/^lot-\d+$/.test(lotKey) || !value || typeof value !== "object" || Array.isArray(value)) return;
+      const record = value as Record<string, unknown>;
+      const stage = isRentalStage(record.stage) ? record.stage : "to-prepare";
+      records[lotKey] = {
+        stage,
+        monthlyRent: typeof record.monthlyRent === "number" && Number.isFinite(record.monthlyRent) && record.monthlyRent >= 0 ? record.monthlyRent : undefined,
+        occupant: typeof record.occupant === "string" ? record.occupant : undefined,
+        leaseStart: typeof record.leaseStart === "string" ? record.leaseStart : undefined,
+        leaseEnd: typeof record.leaseEnd === "string" ? record.leaseEnd : undefined,
+        note: typeof record.note === "string" ? record.note : undefined,
+      };
+    });
+    return records;
+  } catch {
+    return {};
+  }
+};
 
 type MasterLot = (typeof masterLots)[number];
 const categoryNames = ["Parkings", "Caves", "Bureaux / commerces", "Habitations"];
@@ -399,6 +443,7 @@ export default function Home({ privateAddressData, privateOutreachData, onLock }
   const [viewMode, setViewMode] = useState<"owner" | "floor">(savedFloorView);
   const [topView, setTopView] = useState<DashboardView>(savedTopView);
   const [outreach, setOutreach] = useState<OutreachBook>(savedOutreachBook);
+  const [rentals, setRentals] = useState<RentalBook>(savedRentalBook);
   const [outreachReady] = useState(true);
   const [outreachFilter, setOutreachFilter] = useState<OutreachStage>(savedOutreachFilter);
 
@@ -412,6 +457,14 @@ export default function Home({ privateAddressData, privateOutreachData, onLock }
       // Le navigateur peut bloquer l'écriture en navigation privée stricte.
     }
   }, [outreach, outreachReady]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(rentalStorageKey, JSON.stringify(rentals));
+    } catch {
+      // Le suivi reste utilisable si le stockage local est indisponible.
+    }
+  }, [rentals]);
 
   useEffect(() => {
     try {
@@ -767,6 +820,36 @@ export default function Home({ privateAddressData, privateOutreachData, onLock }
     const record = outreachFor(group.ownerName);
     return record.stage === outreachFilter;
   });
+  const baselineRentalOwners = new Set(["SASU LOFI OFFICE"]);
+  const rentalOwnerGroups = trackedOwners.filter((group) => {
+    if (baselineRentalOwners.has(group.ownerName)) return true;
+    if (ownedOwnerNames.has(group.ownerName)) return false;
+    return outreachFor(group.ownerName).stage === "acquired";
+  });
+  const rentalCategoryRank: Record<string, number> = { "Bureaux / commerces": 0, Habitations: 1, Parkings: 2, Caves: 3 };
+  const rentalLots = rentalOwnerGroups
+    .flatMap((group) => group.lots.map((lot) => ({ lot, ownerName: group.ownerName })))
+    .sort((a, b) => (rentalCategoryRank[a.lot.categorie] ?? 99) - (rentalCategoryRank[b.lot.categorie] ?? 99) || a.lot.lot - b.lot.lot);
+  const rentalRecordFor = (lotId: number): RentalRecord => rentals[`lot-${lotId}`] ?? { stage: "to-prepare" };
+  const updateRental = (lotId: number, update: Partial<RentalRecord>) => {
+    setRentals((current) => {
+      const key = `lot-${lotId}`;
+      const existing = current[key] ?? { stage: "to-prepare" as RentalStage };
+      return { ...current, [key]: { ...existing, ...update } };
+    });
+  };
+  const rentalSummary = rentalLots.reduce((summary, item) => {
+    const record = rentalRecordFor(item.lot.lot);
+    summary.total += item.lot.categorie === "Parkings" ? item.lot.parkingSpaces ?? 1 : 1;
+    if (item.lot.categorie === "Bureaux / commerces") summary.offices += 1;
+    if (item.lot.categorie === "Parkings") summary.parkings += item.lot.parkingSpaces ?? 1;
+    if (record.stage === "available") summary.available += item.lot.categorie === "Parkings" ? item.lot.parkingSpaces ?? 1 : 1;
+    if (record.stage === "rented") {
+      summary.rented += item.lot.categorie === "Parkings" ? item.lot.parkingSpaces ?? 1 : 1;
+      summary.monthlyRent += record.monthlyRent ?? 0;
+    }
+    return summary;
+  }, { total: 0, offices: 0, parkings: 0, available: 0, rented: 0, monthlyRent: 0 });
   const changeTopView = (nextView: DashboardView) => {
     setTopView(nextView);
     try {
@@ -853,8 +936,41 @@ export default function Home({ privateAddressData, privateOutreachData, onLock }
       </section>}
 
       {topView === "rentals" && <section className="section rentals-section">
-        <div className="section-title"><div><span className="eyebrow copper">🅿️ PILOTAGE LOCATIF</span><h2>Suivi location</h2></div></div>
-        <div className="rentals-empty"><span>🅿️</span><h3>Locations à organiser</h3><p>Les places disponibles, loyers, locataires et échéances apparaîtront ici au fur et à mesure des mises en location.</p></div>
+        <div className="section-title"><div><span className="eyebrow copper">🔑 PILOTAGE LOCATIF</span><h2>Suivi location</h2></div><p className="operations-save">Les acquisitions finalisées sont ajoutées automatiquement.</p></div>
+        {rentalLots.length > 0 ? <>
+          <div className="rental-summary" aria-label="Synthèse locative">
+            <article><small>💼 Bureaux</small><strong>{rentalSummary.offices}</strong></article>
+            <article><small>🅿️ Parkings</small><strong>{rentalSummary.parkings}</strong></article>
+            <article><small>🔑 Disponibles</small><strong>{rentalSummary.available}</strong></article>
+            <article><small>✅ Loués</small><strong>{rentalSummary.rented}</strong></article>
+            <article><small>💶 Loyer mensuel</small><strong>{money(rentalSummary.monthlyRent)}</strong></article>
+          </div>
+          <div className="rental-list">
+            {rentalLots.map(({ lot, ownerName }) => {
+              const record = rentalRecordFor(lot.lot);
+              const surfaceDetail = surfaceEstimateForLot(lot);
+              const acquisition = acquisitionLabel(lot.dateAcquisition);
+              const parkingSpaces = lot.categorie === "Parkings" ? lot.parkingSpaces ?? 1 : null;
+              const assetLabel = parkingSpaces
+                ? `${parkingSpaces} place${parkingSpaces > 1 ? "s" : ""} de parking`
+                : categoryShortName[lot.categorie];
+              return <article key={lot.lot} className={`rental-card stage-${record.stage}`}>
+                <header>
+                  <div><span className="rental-kind">{categoryEmoji[lot.categorie]} {assetLabel}</span><h3>Lot {lot.lot}</h3><p>{ownerName}</p></div>
+                  <div className="rental-asset-meta"><strong>{text(lot.etage)}</strong>{surfaceDetail && <span>{surfaceDetail.documented ? "" : "≈ "}{number.format(surfaceDetail.value)} m²</span>}{acquisition && <span>📅 {acquisition}</span>}</div>
+                </header>
+                <div className="rental-controls">
+                  <label className={`status-field rental-status stage-${record.stage}`}><span>Statut locatif</span><span className="status-select"><select aria-label={`Statut locatif du lot ${lot.lot}`} value={record.stage} onChange={(event) => updateRental(lot.lot, { stage: event.target.value as RentalStage })}>{rentalStages.map((stage) => <option key={stage.value} value={stage.value}>{stage.emoji} {stage.label}</option>)}</select></span></label>
+                  <label>Loyer mensuel (€)<input type="number" min="0" step="10" inputMode="decimal" value={record.monthlyRent ?? ""} placeholder="0" onChange={(event) => updateRental(lot.lot, { monthlyRent: event.target.value === "" ? undefined : Number(event.target.value) })} /></label>
+                  <label>Locataire / occupant<input type="text" value={record.occupant ?? ""} placeholder="Nom ou société" onChange={(event) => updateRental(lot.lot, { occupant: event.target.value || undefined })} /></label>
+                  <label>Début du bail<input type="date" value={record.leaseStart ?? ""} onChange={(event) => updateRental(lot.lot, { leaseStart: event.target.value || undefined })} /></label>
+                  <label>Fin / échéance<input type="date" value={record.leaseEnd ?? ""} onChange={(event) => updateRental(lot.lot, { leaseEnd: event.target.value || undefined })} /></label>
+                </div>
+                <label className="rental-note">Notes<textarea value={record.note ?? ""} placeholder="Conditions, contact, prochaine action…" onChange={(event) => updateRental(lot.lot, { note: event.target.value || undefined })} /></label>
+              </article>;
+            })}
+          </div>
+        </> : <div className="rentals-empty"><span>🅿️</span><h3>Locations à organiser</h3><p>Les biens apparaîtront ici dès qu’une acquisition sera finalisée.</p></div>}
       </section>}
       </div>
     </main>
