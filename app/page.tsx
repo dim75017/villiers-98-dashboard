@@ -269,6 +269,7 @@ const dateLabel = new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "sho
 const acquisitionLabel = (value: string | null | undefined) => value ? `Acq. ${dateLabel.format(new Date(value))}` : null;
 
 type OutreachStage = "to-send" | "sent" | "replied" | "declined" | "acquired";
+type DashboardView = "home" | "owners" | "operations" | "rentals";
 type OutreachRecord = { stage: OutreachStage; sentAt?: string; note?: string };
 type OutreachBook = Record<string, OutreachRecord>;
 const outreachStorageKey = "villiers-98-operational-follow-up-v1";
@@ -289,17 +290,20 @@ const localDate = () => new Date().toLocaleDateString("en-CA");
 const isOutreachStage = (value: string | null | undefined): value is OutreachStage => outreachStages.some((item) => item.value === value);
 const normalizeOutreachStage = (value: string | null | undefined): OutreachStage | null => value === "no-response" ? "sent" : isOutreachStage(value) ? value : null;
 const dashboardLocation = () => {
-  if (typeof window === "undefined") return { topView: "owners" as const, outreachFilter: null, viewMode: null };
+  if (typeof window === "undefined") return { topView: "home" as const, outreachFilter: null, viewMode: null };
   const [section, detail] = window.location.hash.slice(1).split("/");
+  if (section === "accueil") return { topView: "home" as const, outreachFilter: null, viewMode: null };
   if (section === "suivi") return { topView: "operations" as const, outreachFilter: isOutreachStage(detail) ? detail : null, viewMode: null };
+  if (section === "locations") return { topView: "rentals" as const, outreachFilter: null, viewMode: null };
   if (section === "proprietaires") return { topView: "owners" as const, outreachFilter: null, viewMode: detail === "etage" ? "floor" as const : detail === "proprietaire" ? "owner" as const : null };
   return { topView: null, outreachFilter: null, viewMode: null };
 };
-const savedTopView = (): "owners" | "operations" => {
-  if (typeof window === "undefined") return "owners";
+const savedTopView = (): DashboardView => {
+  if (typeof window === "undefined") return "home";
   const location = dashboardLocation();
   if (location.topView) return location.topView;
-  return window.localStorage.getItem(dashboardViewStorageKey) === "operations" ? "operations" : "owners";
+  const savedView = window.localStorage.getItem(dashboardViewStorageKey);
+  return savedView === "owners" || savedView === "operations" || savedView === "rentals" || savedView === "home" ? savedView : "home";
 };
 const savedFloorView = (): "owner" | "floor" => {
   if (typeof window === "undefined") return "owner";
@@ -363,7 +367,7 @@ export default function Home({ privateAddressData, privateOutreachData, onLock }
   const [revealedAddressOwner, setRevealedAddressOwner] = useState<string | null>(null);
   const [revealedCorporateOwner, setRevealedCorporateOwner] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"owner" | "floor">(savedFloorView);
-  const [topView, setTopView] = useState<"owners" | "operations">(savedTopView);
+  const [topView, setTopView] = useState<DashboardView>(savedTopView);
   const [outreach, setOutreach] = useState<OutreachBook>(savedOutreachBook);
   const [outreachReady] = useState(true);
   const [outreachFilter, setOutreachFilter] = useState<OutreachStage>(savedOutreachFilter);
@@ -384,7 +388,13 @@ export default function Home({ privateAddressData, privateOutreachData, onLock }
       window.localStorage.setItem(dashboardViewStorageKey, topView);
       window.localStorage.setItem(dashboardFloorViewStorageKey, viewMode);
       window.localStorage.setItem(outreachFilterStorageKey, outreachFilter);
-      const hash = topView === "operations" ? `#suivi/${outreachFilter}` : `#proprietaires/${viewMode === "floor" ? "etage" : "proprietaire"}`;
+      const hash = topView === "home"
+        ? "#accueil"
+        : topView === "operations"
+          ? `#suivi/${outreachFilter}`
+          : topView === "rentals"
+            ? "#locations"
+            : `#proprietaires/${viewMode === "floor" ? "etage" : "proprietaire"}`;
       if (window.location.hash !== hash) {
         window.history.replaceState({ dashboardView: topView }, "", `${window.location.pathname}${window.location.search}${hash}`);
       }
@@ -673,11 +683,17 @@ export default function Home({ privateAddressData, privateOutreachData, onLock }
     const record = outreachFor(group.ownerName);
     return record.stage === outreachFilter;
   });
-  const changeTopView = (nextView: "owners" | "operations") => {
+  const changeTopView = (nextView: DashboardView) => {
     setTopView(nextView);
     try {
       window.localStorage.setItem(dashboardViewStorageKey, nextView);
-      const hash = nextView === "operations" ? `#suivi/${outreachFilter}` : `#proprietaires/${viewMode === "floor" ? "etage" : "proprietaire"}`;
+      const hash = nextView === "home"
+        ? "#accueil"
+        : nextView === "operations"
+          ? `#suivi/${outreachFilter}`
+          : nextView === "rentals"
+            ? "#locations"
+            : `#proprietaires/${viewMode === "floor" ? "etage" : "proprietaire"}`;
       window.history.replaceState({ dashboardView: nextView }, "", `${window.location.pathname}${window.location.search}${hash}`);
     } catch { /* la navigation reste utilisable */ }
   };
@@ -685,28 +701,34 @@ export default function Home({ privateAddressData, privateOutreachData, onLock }
     setViewMode("owner");
     setRevealedAddressOwner(null);
     setRevealedCorporateOwner(null);
-    changeTopView("owners");
+    changeTopView("home");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   return (
-    <main className="page-shell">
-      <header className="simple-header">
-        <button type="button" className="identity identity-home" onClick={returnToMainView} aria-label="Retour à la liste des propriétaires"><div><strong>🏛️ 98 avenue de Villiers</strong><small>ACQUISITION PROGRESSIVE · PARIS 17</small></div></button>
-        <div className="header-meta"><nav className="dashboard-nav" aria-label="Vue principale"><button type="button" className={topView === "owners" ? "active" : ""} aria-pressed={topView === "owners"} onClick={() => changeTopView("owners")}>👥 Liste des propriétaires</button><button type="button" className={topView === "operations" ? "active" : ""} aria-pressed={topView === "operations"} onClick={() => changeTopView("operations")}>🗂️ Suivi opérationnel</button></nav></div>
-      </header>
+    <main className="app-shell">
+      <aside className="dashboard-sidebar">
+        <button type="button" className="identity identity-home" onClick={returnToMainView} aria-label="Retour à l'accueil"><div><strong>🏛️ 98 avenue de Villiers</strong><small>ACQUISITION PROGRESSIVE · PARIS 17</small></div></button>
+        <nav className="sidebar-nav" aria-label="Navigation principale">
+          <button type="button" className={topView === "home" ? "active" : ""} aria-pressed={topView === "home"} onClick={() => changeTopView("home")}><span>⌂</span> Accueil</button>
+          <button type="button" className={topView === "owners" ? "active" : ""} aria-pressed={topView === "owners"} onClick={() => changeTopView("owners")}><span>👥</span> Liste des propriétaires</button>
+          <button type="button" className={topView === "operations" ? "active" : ""} aria-pressed={topView === "operations"} onClick={() => changeTopView("operations")}><span>🗂️</span> Suivi acquisition</button>
+          <button type="button" className={topView === "rentals" ? "active" : ""} aria-pressed={topView === "rentals"} onClick={() => changeTopView("rentals")}><span>🅿️</span> Suivi location</button>
+        </nav>
+      </aside>
 
-      {topView === "owners" ? <><section className="hero">
+      <div className="dashboard-main">
+      {topView === "home" && <section className="hero home-hero">
         <div className="metrics">
           <article><small>🧩 Lots à acquérir</small><strong>{currentProspectLots.length}</strong><p>Hors lots déjà maîtrisés</p></article>
           <article><small>👥 Propriétaires à approcher</small><strong>{activeOwnerGroups.length}</strong><p>Les positions déjà détenues sont retirées</p></article>
           <article><small>🧮 Tantièmes contrôlés</small><strong>10 000</strong><p>Rapprochés lot par lot et propriétaire par propriétaire</p></article>
         </div>
         <div className="ownership-progress"><div className="progress-copy"><span>📈 Progression de l’acquisition</span><strong>{pct(currentOwnedShare)} des tantièmes</strong></div><div className="progress-visual" aria-label={`${pct(currentOwnedShare)} des tantièmes déjà maîtrisés`}><div className="progress-track"><i style={{ width: `${currentOwnedShare * 100}%` }} /><b style={{ left: `${currentOwnedShare * 100}%` }}>{pct(currentOwnedShare)}</b></div><div className="progress-scale"><span>0 %</span><span>25 %</span><span>50 %</span><span>75 %</span><span>100 %</span></div></div><div className="progress-finance"><span><b>{money(fundsCommittedToDate)}</b> engagés à date</span><span><b>{money(currentEstimatedRemainingAcquisition)}</b> estimés pour le solde</span></div></div>
-      </section>
+      </section>}
 
-      <section className="section lots-section">
-        <div className="section-title"><div><span className="eyebrow copper">📊 PORTEFEUILLES À ACQUÉRIR</span><h2>Propriétaires à contacter</h2></div><div className="section-actions"><div className="view-switch" role="group" aria-label="Mode d’affichage"><button type="button" className={viewMode === "owner" ? "active" : ""} aria-pressed={viewMode === "owner"} onClick={() => setViewMode("owner")}>👥 Par propriétaire</button><button type="button" className={viewMode === "floor" ? "active" : ""} aria-pressed={viewMode === "floor"} onClick={() => setViewMode("floor")}>🏢 Par étage</button></div></div></div>
+      {topView === "owners" && <section className="section lots-section">
+        <div className="section-title"><div><span className="eyebrow copper">📋 COPROPRIÉTÉ</span><h2>Liste des propriétaires</h2></div><div className="section-actions"><div className="view-switch" role="group" aria-label="Mode d’affichage"><button type="button" className={viewMode === "owner" ? "active" : ""} aria-pressed={viewMode === "owner"} onClick={() => setViewMode("owner")}>👥 Par propriétaire</button><button type="button" className={viewMode === "floor" ? "active" : ""} aria-pressed={viewMode === "floor"} onClick={() => setViewMode("floor")}>🏢 Par étage</button></div></div></div>
 
         {viewMode === "owner" ? <><div className="portfolio-grid">
           {activeOwnerGroups.filter((group) => group.primaryLotCount > 0).map((group) => <article key={group.ownerName} className="portfolio-card">
@@ -717,7 +739,9 @@ export default function Home({ privateAddressData, privateOutreachData, onLock }
           </article>)}</div>
 
         <section className="accessory-section"><div><span className="eyebrow">🅿️ 📦 ANNEXES SEULES</span><h3>Parkings et caves sans logement ni bureau associé</h3><p>Parkings : base de travail ≈ 35 k€ par place, recalibrée sur un loyer observé de 200 à 230 € / mois. À confirmer par dimensions, accès et comparables de vente.</p></div><div className="accessory-owner-list">{activeOwnerGroups.filter((group) => group.primaryLotCount === 0).map((group) => <article key={group.ownerName}><div><strong>👤 {group.ownerName}</strong><small>{text(group.type)} · {number.format(group.ownerWeight)} tantièmes</small><div className="owner-badges">{addressReveal(group.ownerName, group.mailboxSeen)}{corporateReveal(group.ownerName, group.corporateProfiles)}</div></div><p>{group.accessoryCategories.map((category) => { const categoryValue = category.lots.reduce((sum, lot) => sum + (lot.valeurEstimee ?? 0), 0); const parkingSpaces = category.name === "Parkings" ? category.lots.reduce((sum, lot) => sum + (lot.parkingSpaces ?? 1), 0) : category.lots.length; const categoryLabel = category.name === "Parkings" ? `${parkingSpaces} place${parkingSpaces > 1 ? "s" : ""} de parking` : `${category.lots.length} ${categoryShortName[category.name].toLocaleLowerCase("fr")}`; return <span key={category.name}>{categoryEmoji[category.name]} {categoryLabel} : lot{category.lots.length > 1 ? "s" : ""} {category.lots.map((lot) => lot.lot).join(", ")}{categoryValue ? ` · ≈ ${money(categoryValue)}` : ""}</span>; })}</p></article>)}</div></section></> : <div className="floor-grid">{floorGroups.map((group) => <article key={group.floor} className="floor-card"><header><div><span className="floor-kicker">🏢 NIVEAU</span><h3>{group.floor}</h3></div><div className="floor-summary"><strong>{group.lots.length} lot{group.lots.length > 1 ? "s" : ""}{group.parkingSpaceCount ? ` · ${group.parkingSpaceCount} places` : ""}{group.ownedLotCount > 0 ? ` · ${group.ownedLotCount} acquis` : ""}</strong>{group.surface > 0 && <span>📐 {group.surfaceEstimated ? "≈ " : ""}{number.format(group.surface)} m²</span>}<span>≈ {money(group.value)}</span></div></header><div className="floor-lots">{group.lots.map((lot) => { const surfaceDetail = surfaceEstimateForLot(lot); const ownerName = ownerGroupName(lot.proprietaire); const isOwned = isAcquiredLot(lot); const isResident = lot.proprietaire ? ownersSeenOnMailbox.has(ownerName) : null; const profiles = lot.proprietaire ? corporateProfiles[ownerName] ?? null : null; return <article key={lot.lot} className={`floor-lot${isOwned ? " owned" : ""}`}><span>{lot.categorie === "Parkings" && lot.parkingSpaces ? `🅿️ ${lot.parkingSpaces} places de parking` : `${categoryEmoji[lot.categorie]} ${categoryShortName[lot.categorie]}`}</span><b>Lot {lot.lot}</b><strong>{ownerName}</strong>{isOwned ? <div className="floor-status"><i className="owned-lot">✓ Déjà acquis</i></div> : isResident !== null && <div className="owner-badges floor-owner-badges"><i className={isResident ? "resident" : "non-resident"}>📍 {isResident ? "Résident" : "Non-résident"}</i>{corporateReveal(`floor-${lot.lot}`, profiles)}</div>}{surfaceDetail && <small>{surfaceDetail.documented ? "" : "≈ "}{number.format(surfaceDetail.value)} m²</small>}{lot.valeurEstimee && <em>≈ {money(lot.valeurEstimee)}</em>}</article>; })}</div></article>)}</div>}
-      </section></> : <section className="section operations-section">
+      </section>}
+
+      {topView === "operations" && <section className="section operations-section">
         <div className="section-title"><div><span className="eyebrow copper">🗂️ PILOTAGE DES APPROCHES</span><h2>Suivi opérationnel</h2></div><p className="operations-save">Enregistré uniquement sur cet appareil</p></div>
         <div className="operations-summary" role="tablist" aria-label="Étape de prospection">
           {outreachStages.map((stage) => <button key={stage.value} type="button" role="tab" aria-selected={outreachFilter === stage.value} className={`stage-${stage.value}${outreachFilter === stage.value ? " active" : ""}`} onClick={() => setOutreachFilter(stage.value)}><small>{stage.label}</small><strong>{outreachCounts[stage.value]}</strong></button>)}
@@ -737,6 +761,12 @@ export default function Home({ privateAddressData, privateOutreachData, onLock }
           {visibleTrackedOwners.length === 0 && <p className="operations-empty">Aucun propriétaire dans cette étape.</p>}
         </div>
       </section>}
+
+      {topView === "rentals" && <section className="section rentals-section">
+        <div className="section-title"><div><span className="eyebrow copper">🅿️ PILOTAGE LOCATIF</span><h2>Suivi location</h2></div></div>
+        <div className="rentals-empty"><span>🅿️</span><h3>Locations à organiser</h3><p>Les places disponibles, loyers, locataires et échéances apparaîtront ici au fur et à mesure des mises en location.</p></div>
+      </section>}
+      </div>
     </main>
   );
 }
