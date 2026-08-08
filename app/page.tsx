@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import lots from "./lots.json";
 import owners from "./owners.json";
+import ThemeToggle from "./theme-toggle";
 
 type Owner = (typeof owners)[number];
 export type PrivateAddressEntry = {
@@ -779,6 +780,7 @@ export default function Home({ privateAddressData, privateOutreachData, onLock }
       </aside>
 
       <div className="dashboard-main">
+      <div className="dashboard-toolbar"><ThemeToggle /></div>
       {topView === "home" && <section className="hero home-hero">
         <div className="metrics">
           <article><small>🧩 Lots à acquérir</small><strong>{currentProspectLots.length}</strong><p>Hors lots déjà maîtrisés</p></article>

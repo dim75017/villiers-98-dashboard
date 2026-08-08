@@ -5,6 +5,21 @@ import "./globals.css";
 
 const manrope = Manrope({ variable: "--font-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-mono", subsets: ["latin"] });
+const themeInitScript = `
+(() => {
+  const root = document.documentElement;
+  let theme = "dark";
+  try {
+    const saved = localStorage.getItem("villiers-98-theme-v1");
+    theme = saved === "light" || saved === "dark"
+      ? saved
+      : matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+  } catch {
+    theme = matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+  }
+  root.dataset.theme = theme;
+  root.style.colorScheme = theme;
+})();`;
 
 export async function generateMetadata(): Promise<Metadata> {
   const requestHeaders = await headers();
@@ -36,5 +51,5 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="fr"><body className={`${manrope.variable} ${geistMono.variable}`}>{children}</body></html>;
+  return <html lang="fr" suppressHydrationWarning><head><script dangerouslySetInnerHTML={{ __html: themeInitScript }} /></head><body className={`${manrope.variable} ${geistMono.variable}`}>{children}</body></html>;
 }

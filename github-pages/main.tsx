@@ -3,6 +3,7 @@
 import { StrictMode, useEffect, useState, type FormEvent } from "react";
 import { createRoot } from "react-dom/client";
 import Home, { type PrivateAddressEntry, type PrivateOutreachEntry } from "../app/page";
+import ThemeToggle from "../app/theme-toggle";
 import "../app/globals.css";
 
 type EncryptedPayload = {
@@ -306,30 +307,30 @@ function ProtectedDashboard() {
 
   if (privateDashboardData) return <Home privateAddressData={privateDashboardData.addresses} privateOutreachData={privateDashboardData.outreach} onLock={forgetDevice} />;
 
-  if (isRestoring) return <main className="unlock-page">
-    <section className="unlock-card" aria-live="polite">
-      <div className="unlock-mark">98</div>
-      <small>💻 Appareil de confiance</small>
-      <h1>98 avenue de Villiers</h1>
-      <p>Reconnaissance de cet appareil…</p>
-    </section>
-  </main>;
+  if (isRestoring) return <><div className="unlock-theme-switch"><ThemeToggle /></div><main className="unlock-page">
+      <section className="unlock-card" aria-live="polite">
+        <div className="unlock-mark">98</div>
+        <small>💻 Appareil de confiance</small>
+        <h1>98 avenue de Villiers</h1>
+        <p>Reconnaissance de cet appareil…</p>
+      </section>
+    </main></>;
 
-  return <main className="unlock-page">
-    <section className="unlock-card" aria-labelledby="private-title">
-      <div className="unlock-mark">98</div>
-      <small>🔒 Accès privé</small>
-      <h1 id="private-title">98 avenue de Villiers</h1>
-      <p>Le tableau d’acquisition et les adresses de correspondance sont protégés.</p>
-      <form className="unlock-form" onSubmit={unlock}>
-        <label htmlFor="dashboard-password">Mot de passe</label>
-        <input id="dashboard-password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" autoFocus minLength={8} required />
-        <button type="submit" disabled={isLoading}>{isLoading ? "Déverrouillage…" : "Ouvrir le dashboard"}</button>
-      </form>
-      <p className="unlock-error" role="alert" aria-live="polite">{error}</p>
-      <p className="unlock-footnote">Après cette première ouverture, ce navigateur sera reconnu sans limite de durée. Le mot de passe n’est jamais enregistré en clair.</p>
-    </section>
-  </main>;
+  return <><div className="unlock-theme-switch"><ThemeToggle /></div><main className="unlock-page">
+      <section className="unlock-card" aria-labelledby="private-title">
+        <div className="unlock-mark">98</div>
+        <small>🔒 Accès privé</small>
+        <h1 id="private-title">98 avenue de Villiers</h1>
+        <p>Le tableau d’acquisition et les adresses de correspondance sont protégés.</p>
+        <form className="unlock-form" onSubmit={unlock}>
+          <label htmlFor="dashboard-password">Mot de passe</label>
+          <input id="dashboard-password" type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" autoFocus minLength={8} required />
+          <button type="submit" disabled={isLoading}>{isLoading ? "Déverrouillage…" : "Ouvrir le dashboard"}</button>
+        </form>
+        <p className="unlock-error" role="alert" aria-live="polite">{error}</p>
+        <p className="unlock-footnote">Après cette première ouverture, ce navigateur sera reconnu sans limite de durée. Le mot de passe n’est jamais enregistré en clair.</p>
+      </section>
+    </main></>;
 }
 
 createRoot(document.getElementById("root")!).render(
