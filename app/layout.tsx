@@ -17,6 +17,10 @@ export async function generateMetadata(): Promise<Metadata> {
     metadataBase: base,
     title: "98 Villiers — Base complète de l’immeuble",
     description: "Base complète des 85 lots et 44 copropriétaires du 98 avenue de Villiers, Paris 17e.",
+    icons: {
+      icon: "/favicon.svg",
+      shortcut: "/favicon.svg",
+    },
     openGraph: {
       title: "98 Villiers — Base complète de l’immeuble",
       description: "85 lots · 44 copropriétaires · toutes les données sur une page",
