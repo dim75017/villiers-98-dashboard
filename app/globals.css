@@ -329,7 +329,7 @@ html[data-theme="light"] .theme-toggle-track i { transform: translateX(16px); }
 .portfolio-card > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; padding-bottom: 14px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
 .portfolio-card > header > div:first-child { min-width: 0; }
 .portfolio-card h3 { margin: 6px 0 0; color: #fff; font-size: 20px; font-weight: 800; line-height: 1.16; letter-spacing: -0.045em; overflow-wrap: anywhere; }
-.owner-identity-emoji { display: inline-block; margin-right: 3px; font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif; font-size: clamp(28px, 2vw, 34px); line-height: 0.8; vertical-align: -6px; }
+.owner-identity-emoji { display: inline-block; margin-right: 3px; font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif; font-size: 1em; line-height: 1; vertical-align: -0.08em; }
 .owned-portfolio { display: inline-block; margin-left: 7px; padding: 3px 6px; border: 1px solid rgba(96, 180, 255, 0.42); border-radius: 999px; background: rgba(46, 142, 225, 0.14); color: #abdfff; font-size: 9px; font-style: normal; font-weight: 800; letter-spacing: 0; vertical-align: 2px; white-space: nowrap; }
 .portfolio-subtitle { display: block; margin-top: 6px; color: #99d3e7; font-size: 10px; font-weight: 650; line-height: 1.4; }
 .owner-badges { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
