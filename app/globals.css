@@ -275,10 +275,12 @@ strong, b { font-weight: 800; }
   transition: border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
 }
 .portfolio-card:hover { transform: translateY(-2px); border-color: rgba(130, 151, 255, 0.42); box-shadow: 0 16px 35px rgba(0, 0, 0, 0.2); }
+.portfolio-card.owned, .accessory-owner-list article.owned { border-color: rgba(96, 180, 255, 0.34); background: linear-gradient(145deg, rgba(22, 57, 92, 0.52), rgba(12, 20, 31, 0.94)); }
 .portfolio-card > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; padding-bottom: 14px; border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
 .portfolio-card > header > div:first-child { min-width: 0; }
 .portfolio-type { color: #93a1b3; font: 700 10px var(--font-mono), monospace; letter-spacing: 0.075em; text-transform: uppercase; }
 .portfolio-card h3 { margin: 6px 0 0; color: #fff; font-size: 20px; font-weight: 800; line-height: 1.16; letter-spacing: -0.045em; overflow-wrap: anywhere; }
+.owned-portfolio { display: inline-block; margin-left: 7px; padding: 3px 6px; border: 1px solid rgba(96, 180, 255, 0.42); border-radius: 999px; background: rgba(46, 142, 225, 0.14); color: #abdfff; font-size: 9px; font-style: normal; font-weight: 800; letter-spacing: 0; vertical-align: 2px; white-space: nowrap; }
 .portfolio-subtitle { display: block; margin-top: 6px; color: #99d3e7; font-size: 10px; font-weight: 650; line-height: 1.4; }
 .owner-badges { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .floor-owner-badges { margin-top: 2px; }
