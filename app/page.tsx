@@ -595,14 +595,21 @@ export default function Home({ privateAddressData, privateOutreachData, onLock }
     setOutreach((current) => {
       const stored = current[ownerName];
       const record = stored && outreachStages.some((item) => item.value === stored.stage) ? stored : { stage: "to-send" as OutreachStage };
-      return { ...current, [ownerName]: { ...record, stage, sentAt: stage === "sent" && !record.sentAt ? localDate() : record.sentAt } };
+      return { ...current, [ownerName]: { ...record, stage, sentAt: stage === "to-send" ? undefined : record.sentAt ?? localDate() } };
     });
   };
+  const hasBeenSent = (record: OutreachRecord) => record.stage !== "to-send" || Boolean(record.sentAt);
   const outreachCounts = outreachStages.reduce<Record<OutreachStage, number>>((counts, item) => {
-    counts[item.value] = trackedOwners.filter((group) => outreachFor(group.ownerName).stage === item.value).length;
+    counts[item.value] = trackedOwners.filter((group) => {
+      const record = outreachFor(group.ownerName);
+      return item.value === "sent" ? hasBeenSent(record) : record.stage === item.value;
+    }).length;
     return counts;
   }, { "to-send": 0, sent: 0, replied: 0, "no-response": 0, acquired: 0 });
-  const visibleTrackedOwners = trackedOwners.filter((group) => outreachFor(group.ownerName).stage === outreachFilter);
+  const visibleTrackedOwners = trackedOwners.filter((group) => {
+    const record = outreachFor(group.ownerName);
+    return outreachFilter === "sent" ? hasBeenSent(record) : record.stage === outreachFilter;
+  });
   const changeTopView = (nextView: "owners" | "operations") => {
     setTopView(nextView);
     try {
