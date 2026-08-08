@@ -578,8 +578,13 @@ export default function Home({ privateAddressData, privateOutreachData, onLock }
   const currentEstimatedRemainingAcquisition = currentProspectLots.reduce((sum, lot) => sum + (lot.valeurEstimee ?? 0), 0);
   const propertyMix = useMemo(() => {
     const homes = masterLots.filter((lot) => lot.categorie === "Habitations");
-    const formats = ["Studio", "2 pièces", "3 pièces", "4 pièces", "5 pièces +", "Chambre"]
-      .map((label) => ({ label, count: homes.filter((lot) => habitationFormatForLot(lot) === label).length }))
+    const formats = [
+      { label: "5 pièces +", displayLabel: "5 pièces +", emoji: "🏡", className: "home-large" },
+      { label: "3 pièces", displayLabel: "3 pièces", emoji: "🏠", className: "home-family" },
+      { label: "Studio", displayLabel: "studios", emoji: "🛏️", className: "home-studio" },
+      { label: "Chambre", displayLabel: "chambre", emoji: "🛌", className: "home-room" },
+    ]
+      .map((format) => ({ ...format, count: homes.filter((lot) => habitationFormatForLot(lot) === format.label).length }))
       .filter((item) => item.count > 0);
     const parkingSpaces = masterLots.filter((lot) => lot.categorie === "Parkings").reduce((sum, lot) => sum + (lot.parkingSpaces ?? 1), 0);
     return {
@@ -780,7 +785,7 @@ export default function Home({ privateAddressData, privateOutreachData, onLock }
           <article><small>👥 Propriétaires à approcher</small><strong>{activeOwnerGroups.length}</strong><p>Les positions déjà détenues sont retirées</p></article>
           <article><small>🧮 Tantièmes contrôlés</small><strong>10 000</strong><p>Rapprochés lot par lot et propriétaire par propriétaire</p></article>
         </div>
-        <section className="property-mix"><header><div><span>🧱 COMPOSITION DE L’IMMEUBLE</span><strong>{propertyMix.homeCount} habitations</strong></div><small>Typologies estimées à partir de la nature et des surfaces reconstituées.</small></header><div className="property-mix-grid">{propertyMix.formats.map((item) => <article key={item.label}><strong>{item.count}</strong><span>{item.label === "Studio" ? item.count > 1 ? "studios" : "studio" : item.label === "Chambre" ? item.count > 1 ? "chambres" : "chambre" : item.label}</span></article>)}<article className="parking"><strong>{propertyMix.parkingSpaces}</strong><span>places de parking</span></article><article className="cave"><strong>{propertyMix.caveCount}</strong><span>caves</span></article><article className="office"><strong>{propertyMix.officeCount}</strong><span>lots bureaux / commerces</span></article></div></section>
+        <section className="property-mix"><header><div><span>🧱 COMPOSITION DE L’IMMEUBLE</span><strong>{propertyMix.homeCount} habitations</strong></div><small>Typologies estimées à partir de la nature et des surfaces reconstituées.</small></header><div className="property-mix-grid"><article className="office"><strong>{propertyMix.officeCount}</strong><span>💼 lots bureaux / commerces</span></article>{propertyMix.formats.map((item) => <article key={item.label} className={item.className}><strong>{item.count}</strong><span>{item.emoji} {item.count > 1 ? item.displayLabel : item.label === "Studio" ? "studio" : item.displayLabel}</span></article>)}<article className="parking"><strong>{propertyMix.parkingSpaces}</strong><span>🅿️ places de parking</span></article><article className="cave"><strong>{propertyMix.caveCount}</strong><span>📦 caves</span></article></div></section>
         <div className="ownership-progress"><div className="progress-copy"><span>📈 Progression de l’acquisition</span><strong>{pct(currentOwnedShare)} des tantièmes</strong></div><div className="progress-visual" aria-label={`${pct(currentOwnedShare)} des tantièmes déjà maîtrisés`}><div className="progress-track"><i style={{ width: `${currentOwnedShare * 100}%` }} /><b style={{ left: `${currentOwnedShare * 100}%` }}>{pct(currentOwnedShare)}</b></div><div className="progress-scale"><span>0 %</span><span>25 %</span><span>50 %</span><span>75 %</span><span>100 %</span></div></div><div className="progress-finance"><span><b>{money(fundsCommittedToDate)}</b> engagés à date</span><span><b>{money(currentEstimatedRemainingAcquisition)}</b> estimés pour le solde</span></div></div>
       </section>}
 

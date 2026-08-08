@@ -137,6 +137,10 @@ strong, b { font-weight: 800; }
 .property-mix-grid article { min-width: 0; padding: 10px 11px; border: 1px solid rgba(255, 255, 255, 0.075); border-radius: 10px; background: rgba(255, 255, 255, 0.025); }
 .property-mix-grid article strong { display: block; color: #e8edff; font-size: 20px; font-weight: 800; line-height: 1; letter-spacing: -0.06em; }
 .property-mix-grid article span { display: block; margin-top: 5px; color: #9da9b9; font-size: 10px; font-weight: 700; line-height: 1.25; }
+.property-mix-grid article.home-large { border-color: rgba(248, 190, 92, 0.2); background: rgba(248, 190, 92, 0.045); }
+.property-mix-grid article.home-family { border-color: rgba(74, 222, 128, 0.18); background: rgba(74, 222, 128, 0.04); }
+.property-mix-grid article.home-studio { border-color: rgba(167, 139, 250, 0.2); background: rgba(167, 139, 250, 0.045); }
+.property-mix-grid article.home-room { border-color: rgba(244, 114, 182, 0.18); background: rgba(244, 114, 182, 0.04); }
 .property-mix-grid article.parking { border-color: rgba(102, 215, 255, 0.19); background: rgba(102, 215, 255, 0.045); }
 .property-mix-grid article.cave { border-color: rgba(164, 131, 255, 0.17); background: rgba(164, 131, 255, 0.04); }
 .property-mix-grid article.office { border-color: rgba(130, 151, 255, 0.2); background: rgba(130, 151, 255, 0.05); }
