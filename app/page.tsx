@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import lots from "./lots.json";
 import owners from "./owners.json";
 import ThemeToggle from "./theme-toggle";
+import { mergeOutreachBooks, readOutreachBookFromIndexedDb, writeOutreachBookToIndexedDb } from "./outreach-storage";
 
 type Owner = (typeof owners)[number];
 export type PrivateAddressEntry = {
@@ -344,51 +345,60 @@ const dashboardLocation = () => {
   if (section === "proprietaires") return { topView: "owners" as const, outreachFilter: null, viewMode: detail === "etage" ? "floor" as const : detail === "proprietaire" ? "owner" as const : null };
   return { topView: null, outreachFilter: null, viewMode: null };
 };
+const localStorageValue = (key: string) => {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+};
 const savedTopView = (): DashboardView => {
   if (typeof window === "undefined") return "home";
   const location = dashboardLocation();
   if (location.topView) return location.topView;
-  const savedView = window.localStorage.getItem(dashboardViewStorageKey);
+  const savedView = localStorageValue(dashboardViewStorageKey);
   return savedView === "owners" || savedView === "operations" || savedView === "rentals" || savedView === "home" ? savedView : "home";
 };
 const savedFloorView = (): "owner" | "floor" => {
   if (typeof window === "undefined") return "owner";
-  return dashboardLocation().viewMode ?? (window.localStorage.getItem(dashboardFloorViewStorageKey) === "floor" ? "floor" : "owner");
+  return dashboardLocation().viewMode ?? (localStorageValue(dashboardFloorViewStorageKey) === "floor" ? "floor" : "owner");
 };
 const savedOutreachFilter = (): OutreachStage => {
   if (typeof window === "undefined") return "to-send";
   const routedStage = dashboardLocation().outreachFilter;
   if (routedStage) return routedStage;
-  const stage = window.localStorage.getItem(outreachFilterStorageKey);
+  const stage = localStorageValue(outreachFilterStorageKey);
   return isOutreachStage(stage) ? stage : "to-send";
+};
+const parseOutreachBook = (raw: string | null): OutreachBook => {
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+    const records: OutreachBook = {};
+    Object.entries(parsed).forEach(([ownerName, value]) => {
+      if (!value || typeof value !== "object" || Array.isArray(value)) return;
+      const record = value as Record<string, unknown>;
+      const stage = normalizeOutreachStage(typeof record.stage === "string" ? record.stage : null);
+      if (!stage) return;
+      records[ownerName] = {
+        stage,
+        sentAt: typeof record.sentAt === "string" ? record.sentAt : undefined,
+        note: typeof record.note === "string" ? record.note : undefined,
+        updatedAt: typeof record.updatedAt === "string" ? record.updatedAt : undefined,
+      };
+    });
+    return records;
+  } catch {
+    return {};
+  }
 };
 const savedOutreachBook = (): OutreachBook => {
   if (typeof window === "undefined") return {};
-  try {
-    for (const storageKey of [outreachStorageKey, outreachBackupStorageKey]) {
-      const raw = window.localStorage.getItem(storageKey);
-      if (!raw) continue;
-      const parsed = JSON.parse(raw) as unknown;
-      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) continue;
-      const records: OutreachBook = {};
-      Object.entries(parsed).forEach(([ownerName, value]) => {
-        if (!value || typeof value !== "object" || Array.isArray(value)) return;
-        const record = value as Record<string, unknown>;
-        const stage = normalizeOutreachStage(typeof record.stage === "string" ? record.stage : null);
-        if (!stage) return;
-        records[ownerName] = {
-          stage,
-          sentAt: typeof record.sentAt === "string" ? record.sentAt : undefined,
-          note: typeof record.note === "string" ? record.note : undefined,
-          updatedAt: typeof record.updatedAt === "string" ? record.updatedAt : undefined,
-        };
-      });
-      return records;
-    }
-  } catch {
-    // La copie de secours permet de poursuivre même après une écriture interrompue.
-  }
-  return {};
+  const primary = parseOutreachBook(localStorageValue(outreachStorageKey));
+  const backup = parseOutreachBook(localStorageValue(outreachBackupStorageKey));
+  return mergeOutreachBooks(primary, backup);
 };
 const isRentalStage = (value: unknown): value is RentalStage => rentalStages.some((stage) => stage.value === value);
 const savedRentalBook = (): RentalBook => {
@@ -444,18 +454,42 @@ export default function Home({ privateAddressData, privateOutreachData, onLock }
   const [topView, setTopView] = useState<DashboardView>(savedTopView);
   const [outreach, setOutreach] = useState<OutreachBook>(savedOutreachBook);
   const [rentals, setRentals] = useState<RentalBook>(savedRentalBook);
-  const [outreachReady] = useState(true);
+  const [outreachReady, setOutreachReady] = useState(false);
   const [outreachFilter, setOutreachFilter] = useState<OutreachStage>(savedOutreachFilter);
 
   useEffect(() => {
+    let active = true;
+
+    const initializeOutreach = async () => {
+      let indexedDbBook: OutreachBook = {};
+      try {
+        indexedDbBook = parseOutreachBook(await readOutreachBookFromIndexedDb());
+      } catch {
+        // Certains navigateurs bloquent aussi IndexedDB. Le suivi reste alors en mémoire.
+      }
+      if (!active) return;
+      // `current` peut déjà contenir une saisie faite pendant la lecture asynchrone.
+      // Elle reste prioritaire si elle est plus récente, sans perdre une note plus ancienne.
+      setOutreach((current) => mergeOutreachBooks(current, indexedDbBook));
+      setOutreachReady(true);
+    };
+
+    void initializeOutreach();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
     if (!outreachReady) return;
+    const serialized = JSON.stringify(outreach);
     try {
-      const serialized = JSON.stringify(outreach);
       window.localStorage.setItem(outreachStorageKey, serialized);
       window.localStorage.setItem(outreachBackupStorageKey, serialized);
     } catch {
       // Le navigateur peut bloquer l'écriture en navigation privée stricte.
     }
+    void writeOutreachBookToIndexedDb(serialized).catch(() => undefined);
   }, [outreach, outreachReady]);
 
   useEffect(() => {
@@ -471,17 +505,19 @@ export default function Home({ privateAddressData, privateOutreachData, onLock }
       window.localStorage.setItem(dashboardViewStorageKey, topView);
       window.localStorage.setItem(dashboardFloorViewStorageKey, viewMode);
       window.localStorage.setItem(outreachFilterStorageKey, outreachFilter);
-      const hash = topView === "home"
-        ? "#accueil"
-        : topView === "operations"
-          ? `#suivi/${outreachFilter}`
-          : topView === "rentals"
-            ? "#locations"
-            : `#proprietaires/${viewMode === "floor" ? "etage" : "proprietaire"}`;
+    } catch { /* le stockage local n'est pas requis pour conserver la route */ }
+    const hash = topView === "home"
+      ? "#accueil"
+      : topView === "operations"
+        ? `#suivi/${outreachFilter}`
+        : topView === "rentals"
+          ? "#locations"
+          : `#proprietaires/${viewMode === "floor" ? "etage" : "proprietaire"}`;
+    try {
       if (window.location.hash !== hash) {
         window.history.replaceState({ dashboardView: topView }, "", `${window.location.pathname}${window.location.search}${hash}`);
       }
-    } catch { /* sans impact sur la vue */ }
+    } catch { /* la vue reste affichée si l'historique est indisponible */ }
   }, [topView, viewMode, outreachFilter]);
   useEffect(() => {
     const syncTopViewWithLocation = () => {
@@ -719,7 +755,7 @@ export default function Home({ privateAddressData, privateOutreachData, onLock }
     </div>;
   };
 
-  const trackedOwners = ownerGroups.filter((group) => group.ownerName !== "À identifier");
+  const trackedOwners = useMemo(() => ownerGroups.filter((group) => group.ownerName !== "À identifier"), [ownerGroups]);
   const outreachRecord = (ownerName: string, book: OutreachBook): OutreachRecord => {
     const localRecord = book[ownerName];
     if (ownedOwnerNames.has(ownerName)) return { ...localRecord, stage: "acquired" };
@@ -754,46 +790,56 @@ export default function Home({ privateAddressData, privateOutreachData, onLock }
   const outreachFor = (ownerName: string): OutreachRecord => outreachRecord(ownerName, outreach);
   useEffect(() => {
     if (!outreachReady || !privateOutreachData) return;
-    try {
-      if (window.localStorage.getItem(outreachBootstrapKey)) return;
-      setOutreach((current) => {
-        const next = { ...current };
-        trackedOwners.forEach((group) => {
-          const existing = next[group.ownerName];
-          const defaultRecord = privateOutreachData[group.ownerName];
-          if (!defaultRecord) return;
-          const defaultStage = normalizeOutreachStage(defaultRecord.stage);
-          if (defaultStage && (!existing || existing.stage === "to-send")) {
-            next[group.ownerName] = { ...existing, stage: defaultStage, sentAt: existing?.sentAt ?? defaultRecord.sentAt ?? undefined };
-          }
-        });
-        return next;
+    if (localStorageValue(outreachBootstrapKey)) return;
+    setOutreach((current) => {
+      const next = { ...current };
+      trackedOwners.forEach((group) => {
+        const existing = next[group.ownerName];
+        const defaultRecord = privateOutreachData[group.ownerName];
+        if (!defaultRecord) return;
+        const defaultStage = normalizeOutreachStage(defaultRecord.stage);
+        if (defaultStage && (!existing || existing.stage === "to-send")) {
+          next[group.ownerName] = {
+            ...existing,
+            stage: defaultStage,
+            sentAt: existing?.sentAt ?? defaultRecord.sentAt ?? undefined,
+            updatedAt: existing?.updatedAt ?? defaultRecord.updatedAt ?? undefined,
+          };
+        }
       });
+      return next;
+    });
+    try {
       window.localStorage.setItem(outreachBootstrapKey, "1");
     } catch {
-      // Le suivi reste utilisable même si le navigateur refuse le stockage local.
+      // L'initialisation ci-dessus reste effective grâce à IndexedDB.
     }
   }, [outreachReady, privateOutreachData, trackedOwners]);
 
   useEffect(() => {
     if (!outreachReady) return;
-    try {
-      if (window.localStorage.getItem(outreachNoteRecoveryKey)) return;
-      setOutreach((current) => {
-        let changed = false;
-        const next = { ...current };
-        Object.entries(current).forEach(([ownerName, record]) => {
-          if (record.stage !== "to-send" || !record.note?.trim()) return;
-          const defaultRecord = privateOutreachData?.[ownerName];
-          const defaultStage = defaultRecord ? normalizeOutreachStage(defaultRecord.stage) : null;
-          next[ownerName] = { ...record, stage: defaultStage && defaultStage !== "to-send" ? defaultStage : "sent", sentAt: record.sentAt ?? defaultRecord?.sentAt ?? localDate() };
-          changed = true;
-        });
-        return changed ? next : current;
+    if (localStorageValue(outreachNoteRecoveryKey)) return;
+    setOutreach((current) => {
+      let changed = false;
+      const next = { ...current };
+      Object.entries(current).forEach(([ownerName, record]) => {
+        if (record.stage !== "to-send" || !record.note?.trim()) return;
+        const defaultRecord = privateOutreachData?.[ownerName];
+        const defaultStage = defaultRecord ? normalizeOutreachStage(defaultRecord.stage) : null;
+        next[ownerName] = {
+          ...record,
+          stage: defaultStage && defaultStage !== "to-send" ? defaultStage : "sent",
+          sentAt: record.sentAt ?? defaultRecord?.sentAt ?? localDate(),
+          updatedAt: new Date().toISOString(),
+        };
+        changed = true;
       });
+      return changed ? next : current;
+    });
+    try {
       window.localStorage.setItem(outreachNoteRecoveryKey, "1");
     } catch {
-      // La récupération reste sans effet si le navigateur bloque le stockage local.
+      // La récupération ci-dessus reste effective grâce à IndexedDB.
     }
   }, [outreachReady, privateOutreachData]);
   const updateOutreach = (ownerName: string, update: Partial<OutreachRecord>) => {
@@ -854,13 +900,15 @@ export default function Home({ privateAddressData, privateOutreachData, onLock }
     setTopView(nextView);
     try {
       window.localStorage.setItem(dashboardViewStorageKey, nextView);
-      const hash = nextView === "home"
-        ? "#accueil"
-        : nextView === "operations"
-          ? `#suivi/${outreachFilter}`
-          : nextView === "rentals"
-            ? "#locations"
-            : `#proprietaires/${viewMode === "floor" ? "etage" : "proprietaire"}`;
+    } catch { /* la navigation ne dépend pas du stockage local */ }
+    const hash = nextView === "home"
+      ? "#accueil"
+      : nextView === "operations"
+        ? `#suivi/${outreachFilter}`
+        : nextView === "rentals"
+          ? "#locations"
+          : `#proprietaires/${viewMode === "floor" ? "etage" : "proprietaire"}`;
+    try {
       window.history.replaceState({ dashboardView: nextView }, "", `${window.location.pathname}${window.location.search}${hash}`);
     } catch { /* la navigation reste utilisable */ }
   };

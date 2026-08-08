@@ -11,6 +11,7 @@
     "start": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext start",
     "test": "npm run build && node --test tests/rendered-html.test.mjs",
     "test:monitoring": "node --test monitoring/tests/*.test.mjs",
+    "test:outreach": "node --test tests/outreach-storage.test.mjs",
     "monitor:villiers": "node monitoring/run.mjs",
     "monitor:villiers:baseline": "node monitoring/run.mjs --baseline",
     "encrypt:pages-private": "node scripts/encrypt-villiers-private.mjs",
