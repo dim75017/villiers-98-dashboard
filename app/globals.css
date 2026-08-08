@@ -271,6 +271,7 @@ html[data-theme="light"] .theme-toggle-track i { transform: translateX(16px); }
 .status-select { position: relative; display: block; }
 .status-select::after { position: absolute; top: 50%; right: 13px; color: rgba(var(--status-accent), 0.9); content: "⌄"; font-size: 18px; font-weight: 900; line-height: 1; pointer-events: none; transform: translateY(-58%); }
 .status-field select { appearance: none; padding: 8px 40px 8px 12px; border-color: rgba(var(--status-accent), 0.42); border-radius: 14px; background: linear-gradient(135deg, rgba(var(--status-accent), 0.14), rgba(7, 11, 18, 0.86)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.055), 0 7px 18px rgba(0, 0, 0, 0.16); cursor: pointer; }
+.status-field select:disabled { opacity: 1; cursor: default; -webkit-text-fill-color: currentColor; }
 .status-field select:hover { border-color: rgba(var(--status-accent), 0.68); background: linear-gradient(135deg, rgba(var(--status-accent), 0.2), rgba(7, 11, 18, 0.9)); }
 .status-field select option { background: #111826; color: #edf4ff; }
 .operation-controls select:focus, .operation-controls input:focus, .operation-note textarea:focus { border-color: rgba(102, 215, 255, 0.55); box-shadow: 0 0 0 3px rgba(102, 215, 255, 0.08); }
