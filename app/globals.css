@@ -288,8 +288,7 @@ html[data-theme="light"] .theme-toggle-track i { transform: translateX(16px); }
 .floor-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
 .floor-card { min-width: 0; padding: 17px; border: 1px solid rgba(255, 255, 255, 0.085); border-radius: 15px; background: linear-gradient(145deg, rgba(18, 24, 36, 0.98), rgba(12, 16, 25, 0.98)); }
 .floor-card > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding-bottom: 13px; border-bottom: 1px solid rgba(255, 255, 255, 0.075); }
-.floor-kicker { display: block; color: #91a2bf; font: 750 10px var(--font-mono), monospace; letter-spacing: 0.09em; }
-.floor-card h3 { margin: 6px 0 0; color: #fff; font-size: 21px; font-weight: 800; line-height: 1.1; letter-spacing: -0.05em; }
+.floor-card h3 { margin: 0; color: #fff; font-size: 21px; font-weight: 800; line-height: 1.1; letter-spacing: -0.05em; }
 .floor-summary { display: grid; flex: 0 0 auto; gap: 3px; justify-items: end; color: #c7efff; font-size: 10px; font-weight: 800; line-height: 1.35; text-align: right; }
 .floor-summary strong { color: #e4f7ff; font-weight: 850; }
 .floor-summary span:last-child { color: #93cce1; }
@@ -629,7 +628,6 @@ html[data-theme="light"] .rentals-empty { border-color: rgba(121, 95, 60, 0.3); 
 html[data-theme="light"] .rentals-empty h3 { color: #2b2722; }
 html[data-theme="light"] .rentals-empty p { color: #696158; }
 
-html[data-theme="light"] .floor-kicker { color: #795f3c; }
 html[data-theme="light"] .floor-card h3 { color: #2b2722; }
 html[data-theme="light"] .floor-summary,
 html[data-theme="light"] .floor-summary strong,
