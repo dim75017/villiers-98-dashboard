@@ -296,14 +296,17 @@ const outreachNoteRecoveryKey = "villiers-98-operational-follow-up-note-recovery
 const dashboardViewStorageKey = "villiers-98-active-view-v1";
 const dashboardFloorViewStorageKey = "villiers-98-floor-view-v1";
 const outreachFilterStorageKey = "villiers-98-outreach-filter-v1";
-const outreachStages: Array<{ value: OutreachStage; label: string }> = [
-  { value: "to-send", label: "À envoyer" },
-  { value: "sent", label: "Envoyée" },
-  { value: "replied", label: "Intéressé" },
-  { value: "declined", label: "Refus / à recontacter" },
-  { value: "acquired", label: "Acquisition faite" },
+const outreachStages: Array<{ value: OutreachStage; label: string; emoji: string }> = [
+  { value: "to-send", label: "À envoyer", emoji: "✉️" },
+  { value: "sent", label: "Envoyée", emoji: "📤" },
+  { value: "replied", label: "Intéressé", emoji: "💬" },
+  { value: "declined", label: "Refus / à recontacter", emoji: "🔁" },
+  { value: "acquired", label: "Acquisition faite", emoji: "✅" },
 ];
-const outreachStageLabel = (stage: OutreachStage) => outreachStages.find((item) => item.value === stage)?.label ?? "À envoyer";
+const outreachStageDisplay = (stage: OutreachStage) => {
+  const item = outreachStages.find((candidate) => candidate.value === stage);
+  return item ? `${item.emoji} ${item.label}` : "✉️ À envoyer";
+};
 const localDate = () => new Date().toLocaleDateString("en-CA");
 const isOutreachStage = (value: string | null | undefined): value is OutreachStage => outreachStages.some((item) => item.value === value);
 const normalizeOutreachStage = (value: string | null | undefined): OutreachStage | null => value === "no-response" ? "sent" : isOutreachStage(value) ? value : null;
@@ -804,13 +807,13 @@ export default function Home({ privateAddressData, privateOutreachData, onLock }
           {visibleTrackedOwners.map((group) => {
             const record = outreachFor(group.ownerName);
             return <article key={group.ownerName} className={`operation-card stage-${record.stage}`}>
-              <header><div><span>{group.mailboxSeen ? "📍 Résident" : "📍 Non-résident"}</span><h3><span role="img" aria-label={ownerIdentityLabel(group.type)}>{ownerIdentityEmoji(group.type)}</span> {group.ownerName}</h3><small>Lots {group.lots.map((lot) => lot.lot).join(", ")} · {number.format(group.ownerWeight)} tantièmes</small><div className="owner-badges operation-owner-badges">{addressReveal(group.ownerName, group.mailboxSeen)}{corporateReveal(`operation-${group.ownerName}`, group.corporateProfiles)}</div></div><strong>{outreachStageLabel(record.stage)}</strong></header>
+              <header><div><span>{group.mailboxSeen ? "📍 Résident" : "📍 Non-résident"}</span><h3><span role="img" aria-label={ownerIdentityLabel(group.type)}>{ownerIdentityEmoji(group.type)}</span> {group.ownerName}</h3><small>Lots {group.lots.map((lot) => lot.lot).join(", ")} · {number.format(group.ownerWeight)} tantièmes</small><div className="owner-badges operation-owner-badges">{addressReveal(group.ownerName, group.mailboxSeen)}{corporateReveal(`operation-${group.ownerName}`, group.corporateProfiles)}</div></div><strong>{outreachStageDisplay(record.stage)}</strong></header>
               <div className="operation-portfolio">
                 <div className="operation-portfolio-meta"><strong>{group.estimatedPrimarySurface ? `📐 ${group.estimatedPrimarySurfaceCount ? "≈ " : ""}${number.format(group.estimatedPrimarySurface)} m²` : "📐 Surface non reconstituée"}</strong>{group.value ? <strong>💶 ≈ {money(group.value)}</strong> : null}</div>
                 <div className="operation-lot-grid">{group.lots.map((lot) => { const surfaceDetail = surfaceEstimateForLot(lot); const habitationFormat = habitationFormatForLot(lot); const acquisition = acquisitionLabel(lot.dateAcquisition); const lotLabel = lot.categorie === "Parkings" && lot.parkingSpaces ? `${lot.parkingSpaces} place${lot.parkingSpaces > 1 ? "s" : ""} de parking` : categoryShortName[lot.categorie]; return <article key={lot.lot}><span>{categoryEmoji[lot.categorie]} {lotLabel}{habitationFormat ? ` · ${habitationFormat}` : ""}</span><b>Lot {lot.lot}</b><small>{text(lot.etage)}{surfaceDetail ? ` · ${surfaceDetail.documented ? "" : "≈ "}${number.format(surfaceDetail.value)} m²` : ""}</small>{acquisition && <i>📅 {acquisition}</i>}{lot.valeurEstimee && <em>≈ {money(lot.valeurEstimee)}</em>}</article>; })}</div>
               </div>
               <div className="operation-controls">
-                <label>Statut<select value={record.stage} onChange={(event) => changeOutreachStage(group.ownerName, event.target.value as OutreachStage)}>{outreachStages.map((stage) => <option key={stage.value} value={stage.value}>{stage.label}</option>)}</select></label>
+                <label className={`status-field stage-${record.stage}`}><span>Statut</span><span className="status-select"><select aria-label={`Statut de ${group.ownerName}`} value={record.stage} onChange={(event) => changeOutreachStage(group.ownerName, event.target.value as OutreachStage)}>{outreachStages.map((stage) => <option key={stage.value} value={stage.value}>{stage.emoji} {stage.label}</option>)}</select></span></label>
                 <label>Date d’envoi<input type="date" value={record.sentAt ?? ""} onChange={(event) => updateOutreach(group.ownerName, { sentAt: event.target.value || undefined })} /></label>
               </div>
               <label className="operation-note">Notes de suivi<textarea value={record.note ?? ""} placeholder="Réponse reçue, contexte de l'échange, point à retenir…" onChange={(event) => updateOutreach(group.ownerName, { note: event.target.value })} /></label>
