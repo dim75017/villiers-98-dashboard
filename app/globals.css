@@ -19,8 +19,10 @@
 }
 
 * { box-sizing: border-box; }
-html { scroll-behavior: smooth; }
+html { width: 100%; min-width: 0; scroll-behavior: smooth; }
 body {
+  width: 100%;
+  min-width: 0;
   margin: 0;
   background:
     radial-gradient(circle at 82% -12%, rgba(92, 111, 225, 0.19), transparent 34%),
@@ -36,9 +38,9 @@ a { color: inherit; text-decoration: none; }
 button, input, select { font: inherit; }
 strong, b { font-weight: 800; }
 
-.app-shell { display: grid; grid-template-columns: 258px minmax(0, 1fr); width: min(1900px, 100%); min-height: 100vh; margin: 0 auto; }
+.app-shell { display: grid; grid-template-columns: 258px minmax(0, 1fr); width: 100%; min-height: 100vh; margin: 0; }
 .dashboard-sidebar { position: sticky; top: 0; display: flex; align-self: start; flex-direction: column; min-height: 100vh; padding: 27px 17px; border-right: 1px solid rgba(255, 255, 255, 0.075); background: rgba(7, 10, 17, 0.76); backdrop-filter: blur(18px); }
-.dashboard-main { min-width: 0; padding: 0 28px 70px; }
+.dashboard-main { width: 100%; min-width: 0; padding: 0 0 70px; }
 .identity { display: flex; align-items: center; gap: 12px; }
 .identity-home { padding: 0; border: 0; background: transparent; text-align: left; cursor: pointer; }
 .identity-home:hover strong { color: #cfeeff; }
@@ -367,9 +369,14 @@ strong, b { font-weight: 800; }
 .accessory-owner-list small { display: block; margin-top: 4px; color: #94a0b1; font-size: 10px; font-weight: 650; }
 .accessory-owner-list p { display: grid; gap: 5px; margin: 11px 0 0; color: #aab5c3; font-size: 12px; line-height: 1.5; }
 
+@media (min-width: 1600px) {
+  .portfolio-grid, .accessory-owner-list { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .operations-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
 @media (max-width: 1050px) {
   .app-shell { grid-template-columns: 220px minmax(0, 1fr); }
-  .dashboard-main { padding-right: 20px; padding-left: 20px; }
+  .dashboard-main { padding-right: 0; padding-left: 0; }
   .portfolio-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .floor-grid { grid-template-columns: 1fr; }
   .accessory-owner-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -380,7 +387,7 @@ strong, b { font-weight: 800; }
   .dashboard-sidebar { position: relative; min-height: auto; padding: 16px 14px 14px; border-right: 0; border-bottom: 1px solid rgba(255, 255, 255, 0.075); }
   .sidebar-nav { grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 16px; }
   .sidebar-nav button { justify-content: center; padding: 9px 7px; font-size: 11px; }
-  .dashboard-main { padding: 0 14px 50px; }
+  .dashboard-main { padding: 0 0 50px; }
 }
 
 @media (max-width: 760px) {
@@ -416,4 +423,27 @@ strong, b { font-weight: 800; }
   .portfolio-card:hover { transform: none; box-shadow: none; }
   .primary-categories { grid-template-columns: 1fr; }
   .portfolio-card > footer { align-items: flex-start; flex-direction: column; }
+}
+
+@media (max-width: 520px) {
+  .dashboard-sidebar { padding: 14px 8px 10px; }
+  .dashboard-main { padding: 0 6px 36px; }
+  .hero { margin-top: 8px; padding: 10px; border-radius: 12px; }
+  .section { padding: 22px 0; }
+  .section-title { gap: 16px; margin-bottom: 14px; }
+  .section-title h2 { font-size: 26px; }
+  .metrics { gap: 8px; }
+  .metrics article { padding: 16px; }
+  .property-mix { padding: 11px; }
+  .property-mix-grid { gap: 6px; }
+  .ownership-progress { padding: 14px 10px; }
+  .operation-card, .portfolio-card, .floor-card { padding: 12px; }
+  .operation-card > header, .portfolio-card > header, .floor-card > header { flex-direction: column; }
+  .operation-card > header > strong { align-self: flex-start; white-space: normal; }
+  .portfolio-weight { width: 100%; text-align: left; }
+  .floor-summary { justify-items: start; text-align: left; }
+  .corporate-popover { width: min(410px, calc(100vw - 24px)); min-width: 0; }
+  .address-popover { width: min(330px, calc(100vw - 24px)); min-width: 0; }
+  .operation-controls select, .operation-controls input { min-height: 44px; }
+  .operation-controls select, .operation-controls input, .operation-note textarea { font-size: 16px; }
 }
