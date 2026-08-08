@@ -278,7 +278,7 @@ const euro = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR"
 const number = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 2 });
 const text = (value: unknown) => value === null || value === undefined || value === "" ? "—" : String(value);
 const isNaturalPerson = (value: unknown) => String(value ?? "").startsWith("Personne physique");
-const ownerIdentityEmoji = (value: unknown) => isNaturalPerson(value) ? "👤" : "🏢";
+const ownerIdentityEmoji = (value: unknown) => isNaturalPerson(value) ? "👤" : "🏬";
 const ownerIdentityLabel = (value: unknown) => isNaturalPerson(value) ? "Personne physique" : "Société ou SCI";
 const money = (value: unknown) => typeof value === "number" ? euro.format(value) : "—";
 const pct = (value: unknown) => typeof value === "number" ? `${number.format(value * 100)} %` : "—";
